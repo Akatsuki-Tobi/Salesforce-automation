@@ -45,4 +45,22 @@ export class NemotronClient {
 
     return content;
   }
+
+  async chat(prompt: string, maxTokens = 1024): Promise<string> {
+    const response = await this.openai.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: "user", content: prompt },
+      ],
+      temperature: this.temperature,
+      max_tokens: maxTokens,
+    });
+
+    const content = response.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new Error("Nemotron returned an empty response.");
+    }
+
+    return content;
+  }
 }

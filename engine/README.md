@@ -36,6 +36,36 @@ npm run build
 npm run start
 ```
 
+## Direct Nemotron proxy
+
+After building, you can run a simple HTTP proxy that forwards prompts directly to Nemotron:
+
+```bash
+npm run direct-server
+```
+
+Then POST JSON to:
+
+```text
+http://localhost:4000/prompt
+```
+
+Example using `curl`:
+
+```bash
+curl -X POST http://localhost:4000/prompt \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"Explain the next automation step for Salesforce Trailhead.","maxTokens":512}'
+```
+
+You can also use a direct CLI:
+
+```bash
+npm run direct-cli
+```
+
+Type a prompt and press Enter to send it directly to Nemotron.
+
 ## Notes
 
 - The engine will load environment variables from `engine/.env`.
