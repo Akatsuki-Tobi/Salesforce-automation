@@ -1,0 +1,1 @@
+{"version":3,"file":"worldModelIntegration.d.ts","sourceRoot":"","sources":["worldModelIntegration.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,KAAK,EAAE,MAAM,SAAS,CAAC;AAIhC,qBAAa,qBAAqB;IAChC,OAAO,CAAC,YAAY,CAAe;IACnC,OAAO,CAAC,UAAU,CAAa;;IAOxB,cAAc,CAAC,KAAK,EAAE,KAAK,GAAG,IAAI;CAG1C"}

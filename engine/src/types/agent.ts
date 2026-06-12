@@ -83,6 +83,16 @@ export interface WorldModel {
     state: AgentState;
     stepCount: number;
   };
+  // RAG fields
+  knowledgeContext?: RetrievedContext[];
+  knowledgeGaps?: KnowledgeGap[];
+  searchedQueries?: string[];
+  ragBudget?: {
+    searchesUsed: number;
+    pagesScraped: number;
+    documentsStored: number;
+    startTime: number;
+  };
 }
 
 export interface PlannerOutput {
@@ -92,4 +102,85 @@ export interface PlannerOutput {
   action: string;
   params: Record<string, unknown>;
   is_complete: boolean;
+  knowledgeQuery?: string;
+  retrievedContextUsed?: boolean;
 }
+
+// ==================== RAG Types ====================
+
+export enum LearningState {
+  KNOWN = "KNOWN",
+  UNKNOWN = "UNKNOWN",
+  SEARCHING = "SEARCHING",
+  LEARNING = "LEARNING",
+  VERIFIED = "VERIFIED",
+  REJECTED = "REJECTED"
+}
+
+export enum KnowledgeType {
+  DOCUMENTATION = "DOCUMENTATION",
+  WORKFLOW = "WORKFLOW",
+  CONFIGURATION = "CONFIGURATION",
+  ERROR_FIX = "ERROR_FIX",
+  UI_PATTERN = "UI_PATTERN",
+  REFERENCE = "REFERENCE"
+}
+
+export interface SearchResult {
+  title: string;
+  snippet: string;
+  url: string;
+}
+
+export interface KnowledgeScore {
+  sourceAuthority: number;
+  relevance: number;
+  freshness: number;
+  confidence: number;
+}
+
+export interface KnowledgeChunk {
+  chunkId: string;
+  content: string;
+  source: string;
+  url?: string;
+  title?: string;
+  timestamp: number;
+  knowledgeType: KnowledgeType;
+  embedding?: number[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface KnowledgeGap {
+  description: string;
+  query: string;
+  detectedAtStep: number;
+  resolved: boolean;
+}
+
+export interface RetrievedContext {
+  chunks: KnowledgeChunk[];
+  query: string;
+  retrievalLatencyMs: number;
+}
+
+// ==================== RAG Budget Constants ====================
+
+export const RAG_MAX_SEARCHES = 3;
+export const RAG_MAX_SCRAPED_PAGES = 10;
+export const RAG_MAX_RAG_DOCUMENTS = 20;
+export const RAG_MAX_CONTEXT_TOKENS = 15000;
+export const RAG_MAX_RESEARCH_TIME = 120000; // ms
+export const RAG_CONFIDENCE_THRESHOLD = 0.70;
+export const RAG_TOP_K = 5;
+
+// Domain authority weights
+export const DOMAIN_WEIGHTS: Record<string, number> = {
+  "trailhead.salesforce.com": 10,
+  "developer.salesforce.com": 10,
+  "salesforce.com": 10,
+  "help.salesforce.com": 10,
+  "github.com": 7,
+  "stackoverflow.com": 6,
+  "community.salesforce.com": 6
+};

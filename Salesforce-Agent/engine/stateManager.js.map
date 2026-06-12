@@ -1,0 +1,1 @@
+{"version":3,"file":"stateManager.js","sourceRoot":"","sources":["stateManager.ts"],"names":[],"mappings":";;;AAAA,MAAa,YAAY;IACf,UAAU,CAAa;IAE/B,YAAY,UAAsB;QAChC,IAAI,CAAC,UAAU,GAAG,UAAU,CAAC;IAC/B,CAAC;IAEM,WAAW;QAChB,mCAAmC;IACrC,CAAC;CACF;AAVD,oCAUC"}

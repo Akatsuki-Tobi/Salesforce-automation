@@ -4,10 +4,25 @@ import { validatePlannedAction } from "./validation/action-validator.js";
 import { verifyActionOutcome } from "./verification/verification-engine.js";
 import { chooseRecoveryStrategy } from "./recovery/recovery-manager.js";
 import { observePage } from "./observation/page-observer.js";
-import { getWorldModel, updateGoal, updateStatus, addObservation, addCompletedAction, addFailedAction, addDiscoveredFact, updateBrowserState, updateEnvironment } from "./world-model/state-manager.js";
+import {
+  getWorldModel,
+  updateGoal,
+  updateStatus,
+  addObservation,
+  addCompletedAction,
+  addFailedAction,
+  addDiscoveredFact,
+  updateBrowserState,
+  updateEnvironment,
+  setKnowledgeContext,
+  addKnowledgeGap,
+  resolveKnowledgeGap,
+} from "./world-model/state-manager.js";
 import { plannerLog, errorLog, verificationLog, recoveryLog } from "./utils/logger.js";
 import type { ActionRecord } from "./types/agent.js";
 import { AgentState } from "./types/agent.js";
+import { GapDetector } from "./rag/gap-detector.js";
+import { RAGService } from "./rag/service.js";
 
 const MAX_STEPS_PER_GOAL = 15;
 const MAX_TOTAL_STEPS = 200;
@@ -15,6 +30,8 @@ const MAX_TOTAL_STEPS = 200;
 export class EngineLoop {
   private readonly planner = new Planner();
   private readonly executor = new PlaywrightExecutor();
+  private readonly gapDetector = new GapDetector();
+  private readonly ragService = new RAGService();
   private failureCount = 0;
   private stepCount = 0;
 
@@ -84,6 +101,23 @@ export class EngineLoop {
         addFailedAction(actionRecord);
         verificationLog({ step: this.stepCount, success, action: plan.action });
         this.failureCount += 1;
+      }
+
+      try {
+        // RAG: Detect and fill knowledge gaps
+        const worldModelForGap = getWorldModel();
+        const gapResult = this.gapDetector.detect(worldModelForGap, plan, success);
+        if (gapResult.gap) {
+          addKnowledgeGap(gapResult.gap);
+          const context = await this.ragService.fillKnowledgeGap(gapResult.gap.query);
+          setKnowledgeContext(context);
+          // Resolve the gap after retrieval
+          resolveKnowledgeGap(gapResult.gap.query);
+          addDiscoveredFact(`RAG: filled knowledge gap with ${context.chunks.length} chunks`);
+        }
+      } catch (ragError) {
+        console.error("RAG processing error:", ragError);
+        addDiscoveredFact(`RAG error: ${ragError instanceof Error ? ragError.message : String(ragError)}`);
       }
 
       updateStatus({ state: AgentState.REFLECT });

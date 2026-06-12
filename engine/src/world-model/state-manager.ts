@@ -1,4 +1,4 @@
-import type { WorldModel, Observation, ActionRecord, BrowserTab } from "../types/agent.js";
+import type { WorldModel, Observation, ActionRecord, BrowserTab, RetrievedContext, KnowledgeGap } from "../types/agent.js";
 import { AgentState } from "../types/agent.js";
 
 const initialState: WorldModel = {
@@ -22,6 +22,16 @@ const initialState: WorldModel = {
   status: {
     state: AgentState.OBSERVE,
     stepCount: 0,
+  },
+  // RAG state
+  knowledgeContext: [],
+  knowledgeGaps: [],
+  searchedQueries: [],
+  ragBudget: {
+    searchesUsed: 0,
+    pagesScraped: 0,
+    documentsStored: 0,
+    startTime: Date.now(),
   },
 };
 
@@ -65,4 +75,44 @@ export function updateStatus(status: Partial<WorldModel["status"]>): void {
 
 export function setWorldModel(state: WorldModel): void {
   worldState = { ...state, observations: [...state.observations], memory: { ...state.memory, completedActions: [...state.memory.completedActions], failedActions: [...state.memory.failedActions], discoveredFacts: [...state.memory.discoveredFacts] }, browser: { ...state.browser, openTabs: [...state.browser.openTabs] } };
+}
+
+// RAG state management
+
+export function setKnowledgeContext(chunks: RetrievedContext[]): void {
+  worldState.knowledgeContext = chunks;
+}
+
+export function addKnowledgeGap(gap: KnowledgeGap): void {
+  worldState.knowledgeGaps = worldState.knowledgeGaps ?? [];
+  worldState.knowledgeGaps.push(gap);
+}
+
+export function resolveKnowledgeGap(query: string): void {
+  worldState.knowledgeGaps = worldState.knowledgeGaps?.map((gap) =>
+    gap.query === query ? { ...gap, resolved: true } : gap
+  );
+}
+
+export function recordSearchedQuery(query: string): void {
+  worldState.searchedQueries = worldState.searchedQueries ?? [];
+  if (!worldState.searchedQueries.includes(query)) {
+    worldState.searchedQueries.push(query);
+  }
+}
+
+export function consumeRagBudget(amount: number): void {
+  if (!worldState.ragBudget) {
+    worldState.ragBudget = { searchesUsed: 0, pagesScraped: 0, documentsStored: 0, startTime: Date.now() };
+  }
+  worldState.ragBudget.searchesUsed += amount;
+}
+
+export function resetRagBudget(): void {
+  worldState.ragBudget = {
+    searchesUsed: 0,
+    pagesScraped: 0,
+    documentsStored: 0,
+    startTime: Date.now(),
+  };
 }

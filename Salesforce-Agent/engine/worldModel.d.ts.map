@@ -1,0 +1,1 @@
+{"version":3,"file":"worldModel.d.ts","sourceRoot":"","sources":["worldModel.ts"],"names":[],"mappings":"AAAA,qBAAa,UAAU;IACrB,OAAO,CAAC,WAAW,CAAc;IACjC,OAAO,CAAC,OAAO,CAAU;gBAEb,WAAW,EAAE,WAAW,EAAE,OAAO,EAAE,OAAO;IAK/C,MAAM,IAAI,OAAO,CAAC,OAAO,CAAC;CAGlC"}

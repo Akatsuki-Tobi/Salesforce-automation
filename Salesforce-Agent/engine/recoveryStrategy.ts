@@ -1,0 +1,9 @@
+export enum RecoveryStrategy {
+  RETRY,
+  REOBSERVE,
+  REFRESH,
+  ALTERNATIVE_SELECTOR,
+  GO_BACK,
+  SWITCH_TAB,
+  REPLAN
+}

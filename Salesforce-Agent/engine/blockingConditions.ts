@@ -1,0 +1,7 @@
+export enum BlockingCondition {
+  CAPTCHA,
+  MFA,
+  ACCOUNT_SELECTION,
+  SECURITY_CONFIRMATION,
+  PERMISSION_DIALOG
+}
