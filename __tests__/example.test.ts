@@ -1,4 +1,4 @@
-import { example } from '../src/example';
+import example from '../src/example';
 
 describe('example', () => {
   it('should return true', () => {

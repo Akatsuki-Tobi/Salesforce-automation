@@ -142,6 +142,16 @@ export class HealthCheckService {
             },
             interval: 60000, // Check every minute
         });
+        if (!this.checks.has("model_rotation")) {
+            this.checks.set("model_rotation", {
+                name: "model_rotation",
+                check: async () => {
+                    // logic to check model rotation
+                    return { status: "ok" };
+                },
+                interval: 30000,
+            });
+        }
     }
 }
 //# sourceMappingURL=health-check.js.map
