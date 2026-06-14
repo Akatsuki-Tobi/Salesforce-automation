@@ -47,4 +47,39 @@ export const DOMAIN_WEIGHTS = {
     "stackoverflow.com": 6,
     "community.salesforce.com": 6
 };
+import { JSDOM } from 'jsdom';
+import { SemanticVisionResult } from './semantic-vision';
+import { ObjectDetectionResult } from './object-detector';
+export class DOMVisionFusion {
+    dom;
+    screenshot;
+    semanticVision;
+    objectDetection;
+    constructor(dom, screenshot, semanticVision, objectDetection) {
+        this.dom = dom;
+        this.screenshot = screenshot;
+        this.semanticVision = semanticVision;
+        this.objectDetection = objectDetection;
+    }
+    async alignDOMWithVision() {
+        const dom = new JSDOM(this.dom);
+        const elements = Array.from(dom.window.document.body.children);
+        return Promise.all(elements.map(async (element) => {
+            const bbox = VisionUtils.getElementBoundingBox(element);
+            const matchingRegion = this.objectDetection.regions.find(region => VisionUtils.boundingBoxesIntersect(bbox, region.bbox));
+            if (matchingRegion) {
+                const semanticLabel = this.semanticVision.labels.find(label => label.regionId === matchingRegion.id)?.text || 'Unknown';
+                return {
+                    element,
+                    visionRegion: {
+                        ...matchingRegion,
+                        semanticLabel,
+                        screenshotCrop: VisionUtils.cropScreenshot(this.screenshot, matchingRegion.bbox)
+                    }
+                };
+            }
+            return { element, visionRegion: null };
+        }));
+    }
+}
 //# sourceMappingURL=agent.js.map

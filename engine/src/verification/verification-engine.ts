@@ -1,5 +1,37 @@
 import type { Page } from "playwright";
 import { verificationLog } from "../utils/logger.js";
+import { ExplainableDifferenceReport } from "./difference-report";
+import { PixelComparisonResult } from "./pixel-comparator";
+import { SSIMResult } from "./ssim-comparator";
+import { FeatureMatchResult } from "./feature-matcher";
+import { OCRVerificationResult } from "./ocr-verifier";
+import { ObjectDetectionResult } from "./object-detector";
+import { SemanticVisionResult } from "./semantic-vision";
+import { DOMVisionFusionResult } from "./dom-vision-fusion";
+
+class VerificationEngine {
+  async runVerification(
+    pixelComparison: PixelComparisonResult,
+    ssim: SSIMResult,
+    featureMatches: FeatureMatchResult,
+    ocr: OCRVerificationResult,
+    objectDetection: ObjectDetectionResult,
+    semanticVision: SemanticVisionResult,
+    domVision: DOMVisionFusionResult
+  ): Promise<string> {
+    const report = new ExplainableDifferenceReport(
+      pixelComparison,
+      ssim,
+      featureMatches,
+      ocr,
+      objectDetection,
+      semanticVision,
+      domVision
+    );
+
+    return report.generateReport();
+  }
+}
 
 export async function verifyActionOutcome(expectedOutcome: string, page: Page | null): Promise<boolean> {
   if (!page) {

@@ -1,0 +1,4 @@
+coverage:
+  run: coverage run -m unittest discover
+  report: coverage report -m
+  xml: coverage xml

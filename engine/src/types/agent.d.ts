@@ -154,4 +154,14 @@ export declare const RAG_MAX_RESEARCH_TIME = 120000;
 export declare const RAG_CONFIDENCE_THRESHOLD = 0.7;
 export declare const RAG_TOP_K = 5;
 export declare const DOMAIN_WEIGHTS: Record<string, number>;
+import { SemanticVisionResult } from './semantic-vision';
+import { ObjectDetectionResult } from './object-detector';
+export declare class DOMVisionFusion {
+    private dom;
+    private screenshot;
+    private semanticVision;
+    private objectDetection;
+    constructor(dom: string, screenshot: Buffer, semanticVision: SemanticVisionResult, objectDetection: ObjectDetectionResult);
+    alignDOMWithVision(): Promise<Map<Element, VisionRegion>>;
+}
 //# sourceMappingURL=agent.d.ts.map

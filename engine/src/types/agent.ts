@@ -184,3 +184,44 @@ export const DOMAIN_WEIGHTS: Record<string, number> = {
   "stackoverflow.com": 6,
   "community.salesforce.com": 6
 };
+
+import { JSDOM } from 'jsdom'
+import { SemanticVisionResult } from './semantic-vision'
+import { ObjectDetectionResult } from './object-detector'
+
+declare let DOMUtils
+
+declare let VisionUtils
+
+export class DOMVisionFusion {
+  constructor(private dom: string, private screenshot: Buffer, private semanticVision: SemanticVisionResult, private objectDetection: ObjectDetectionResult) {}
+
+  async alignDOMWithVision(): Promise<Map<Element, VisionRegion>> {
+    const dom = new JSDOM(this.dom)
+    const elements = Array.from(dom.window.document.body.children)
+    
+    return Promise.all(elements.map(async (element) => {
+      const bbox = VisionUtils.getElementBoundingBox(element)
+      const matchingRegion = this.objectDetection.regions.find(region =>
+        VisionUtils.boundingBoxesIntersect(bbox, region.bbox)
+      )
+      
+      if (matchingRegion) {
+        const semanticLabel = this.semanticVision.labels.find(label =>
+          label.regionId === matchingRegion.id
+        )?.text || 'Unknown'
+        
+        return {
+          element,
+          visionRegion: {
+            ...matchingRegion,
+            semanticLabel,
+            screenshotCrop: VisionUtils.cropScreenshot(this.screenshot, matchingRegion.bbox)
+          }
+        }
+      }
+      
+      return { element, visionRegion: null }
+    }
+  }
+}
