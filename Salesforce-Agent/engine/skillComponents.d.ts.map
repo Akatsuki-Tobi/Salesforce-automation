@@ -1,1 +1,0 @@
-{"version":3,"file":"skillComponents.d.ts","sourceRoot":"","sources":["skillComponents.ts"],"names":[],"mappings":"AAAA,qBAAa,eAAe;IAC1B,OAAO,CAAC,QAAQ,CAKd;IACF,OAAO,CAAC,aAAa,CAGnB;IACF,OAAO,CAAC,SAAS,CAAW;IAC5B,OAAO,CAAC,KAAK,CAGT;IACJ,OAAO,CAAC,YAAY,CAGlB;IACF,OAAO,CAAC,QAAQ,CAAS;gBAEb,KAAK,EAAE,KAAK;CAQzB"}

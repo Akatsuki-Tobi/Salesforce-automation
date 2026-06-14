@@ -1,1 +1,0 @@
-{"version":3,"file":"worldModel.js","sourceRoot":"","sources":["worldModel.ts"],"names":[],"mappings":";;;AAAA,MAAa,UAAU;IACb,WAAW,CAAc;IACzB,OAAO,CAAU;IAEzB,YAAY,WAAwB,EAAE,OAAgB;QACpD,IAAI,CAAC,WAAW,GAAG,WAAW,CAAC;QAC/B,IAAI,CAAC,OAAO,GAAG,OAAO,CAAC;IACzB,CAAC;IAEM,MAAM;QACX,qCAAqC;IACvC,CAAC;CACF;AAZD,gCAYC"}

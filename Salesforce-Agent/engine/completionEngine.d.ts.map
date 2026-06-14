@@ -1,1 +1,0 @@
-{"version":3,"file":"completionEngine.d.ts","sourceRoot":"","sources":["completionEngine.ts"],"names":[],"mappings":"AAAA,qBAAa,gBAAgB;IAC3B,OAAO,CAAC,eAAe,CAAkB;gBAE7B,eAAe,EAAE,eAAe;IAIrC,UAAU,IAAI,OAAO;CAG7B"}
