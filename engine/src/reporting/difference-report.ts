@@ -8,8 +8,7 @@ import { SemanticVisionResult } from './semantic-vision'
 import { DOMVisionFusionResult } from './dom-vision-fusion'
 
 class ExplainableDifferenceReport {
-  constructor(
-    private pixelComparison: PixelComparisonResult,
+  constructor(      private pixelComparison: PixelComparisonResult,
     private ssim: SSIMResult,
     private featureMatches: FeatureMatchResult,
     private ocr: OCRVerificationResult,
@@ -19,7 +18,9 @@ class ExplainableDifferenceReport {
   ) {}
 
   generateReport(): string {
-    let report = """
+    let report = "";
+
+// End of file
     
     report += `\n[Pixel Comparison] Threshold: ${this.pixelComparison.threshold},
 Match: ${this.pixelComparison.match ? '✅' : '❌'}\n`
