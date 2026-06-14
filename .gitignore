@@ -17,3 +17,4 @@ observations/
 
 # Test coverage
 coverage/
+.github/prompts/AgentBlazzer.prompt.md
