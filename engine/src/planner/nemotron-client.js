@@ -1,13 +1,16 @@
-import OpenAI from "openai";
-export class NemotronClient {
-    openai;
-    model;
-    temperature;
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.NemotronClient = void 0;
+const openai_1 = __importDefault(require("openai"));
+class NemotronClient {
     constructor(config) {
         if (!config.apiKey) {
             throw new Error("NVIDIA_API_KEY is required to initialize the Nemotron client.");
         }
-        this.openai = new OpenAI({
+        this.openai = new openai_1.default({
             apiKey: config.apiKey,
             baseURL: config.baseUrl || "https://integrate.api.nvidia.com/v1",
         });
@@ -47,4 +50,4 @@ export class NemotronClient {
         return content;
     }
 }
-//# sourceMappingURL=nemotron-client.js.map
+exports.NemotronClient = NemotronClient;

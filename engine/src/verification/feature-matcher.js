@@ -1,11 +1,13 @@
-import { createCanvas, loadImage } from "canvas";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.FeatureMatcher = void 0;
+const canvas_1 = require("canvas");
 /**
  * Feature Matcher - Step 4 of the visual verification pipeline
  * Uses ORB, SIFT, and AKAZE algorithms to compare keypoints, corners, logos, icons, and buttons
  * Useful after responsive layout changes
  */
-export class FeatureMatcher {
-    options;
+class FeatureMatcher {
     constructor(options = {}) {
         this.options = {
             algorithm: "orb",
@@ -19,7 +21,7 @@ export class FeatureMatcher {
      * Compare two screenshots using feature matching
      */
     async compare(screenshotA, screenshotB, threshold = 0.6) {
-        const [imageA, imageB] = await Promise.all([loadImage(screenshotA), loadImage(screenshotB)]);
+        const [imageA, imageB] = await Promise.all([(0, canvas_1.loadImage)(screenshotA), (0, canvas_1.loadImage)(screenshotB)]);
         const widthA = imageA.width;
         const heightA = imageA.height;
         const widthB = imageB.width;
@@ -49,7 +51,7 @@ export class FeatureMatcher {
         };
     }
     extractKeypoints(image, width, height) {
-        const canvas = createCanvas(width, height);
+        const canvas = (0, canvas_1.createCanvas)(width, height);
         const ctx = canvas.getContext("2d");
         ctx.drawImage(image, 0, 0, width, height);
         const imageData = ctx.getImageData(0, 0, width, height);
@@ -156,5 +158,5 @@ export class FeatureMatcher {
         return Math.sqrt(distance);
     }
 }
-export default FeatureMatcher;
-//# sourceMappingURL=feature-matcher.js.map
+exports.FeatureMatcher = FeatureMatcher;
+exports.default = FeatureMatcher;

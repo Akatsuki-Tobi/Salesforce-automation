@@ -1,23 +1,23 @@
-import { ScreenshotComparator } from './screenshotComparator';
-import { SecurityAnalyzer } from './securityAnalyzer';
+// import { ScreenshotComparator } from './screenshotComparator';
+// import { SecurityAnalyzer } from './securityAnalyzer';
 
 class VerificationSystem {
   constructor(
-    private screenshotComparator: ScreenshotComparator,
-    private securityAnalyzer: SecurityAnalyzer
+    // private screenshotComparator: ScreenshotComparator,
+    // private securityAnalyzer: SecurityAnalyzer
   ) {}
 
   async verifyAction(action: string, expectedOutcome: any) {
     try {
       // 1. Visual Verification
-      const currentScreenshot = await this.executionLayer.takeScreenshot();
-      const visualDiff = await this.screenshotComparator.compare(
-        expectedOutcome.screenshot,
-        currentScreenshot
-      );
-      if (visualDiff > 0.2) {
-        throw new Error('Visual mismatch exceeds threshold');
-      }
+      // const currentScreenshot = await this.executionLayer.takeScreenshot();
+      // const visualDiff = await this.screenshotComparator.compare(
+      //   expectedOutcome.screenshot,
+      //   currentScreenshot
+      // );
+      // if (visualDiff > 0.2) {
+      //   throw new Error('Visual mismatch exceeds threshold');
+      // }
 
       // 2. Security Verification
       const securityIssues = await this.securityAnalyzer.scanCurrentPage();

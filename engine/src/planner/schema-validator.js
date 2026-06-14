@@ -1,3 +1,6 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.validateSchema = validateSchema;
 const allowedActions = new Set([
     "click",
     "type",
@@ -11,7 +14,7 @@ const allowedActions = new Set([
     "goBack",
     "waitForElement",
 ]);
-export function validateSchema(value) {
+function validateSchema(value) {
     if (!value || typeof value !== "object") {
         return { approved: false, reason: "Output is not an object" };
     }
@@ -36,4 +39,3 @@ export function validateSchema(value) {
     }
     return { approved: true };
 }
-//# sourceMappingURL=schema-validator.js.map

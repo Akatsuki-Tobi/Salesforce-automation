@@ -1,7 +1,12 @@
 #!/usr/bin/env node
-import readline from "readline";
-import { sendDirectPrompt } from "./direct/direct-conversation.js";
-const rl = readline.createInterface({
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const readline_1 = __importDefault(require("readline"));
+const direct_conversation_js_1 = require("./direct/direct-conversation.js");
+const rl = readline_1.default.createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: "Nemotron> ",
@@ -15,7 +20,7 @@ rl.on("line", async (line) => {
         return;
     }
     try {
-        const response = await sendDirectPrompt(prompt);
+        const response = await (0, direct_conversation_js_1.sendDirectPrompt)(prompt);
         console.log(`\nResponse:\n${response}\n`);
     }
     catch (error) {
@@ -26,4 +31,3 @@ rl.on("line", async (line) => {
     console.log("Goodbye.");
     process.exit(0);
 });
-//# sourceMappingURL=cli.js.map

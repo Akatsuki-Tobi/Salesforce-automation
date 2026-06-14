@@ -1,10 +1,11 @@
-import { TelemetryEvent, TelemetryEventType } from "../types/monitoring.js";
-export class EventBus {
-    static instance;
-    listeners = new Map();
-    wildcardListeners = new Set();
-    maxListeners = 100;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.EventBus = void 0;
+class EventBus {
     constructor(config = {}) {
+        this.listeners = new Map();
+        this.wildcardListeners = new Set();
+        this.maxListeners = 100;
         this.maxListeners = config.maxListeners ?? this.maxListeners;
     }
     static getInstance(config) {
@@ -96,4 +97,4 @@ export class EventBus {
         }
     }
 }
-//# sourceMappingURL=event-bus.js.map
+exports.EventBus = EventBus;

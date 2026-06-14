@@ -1,11 +1,13 @@
-import { createCanvas, loadImage } from "canvas";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SSIMComparator = void 0;
+const canvas_1 = require("canvas");
 /**
  * SSIM (Structural Similarity Index) - Step 3 of the visual verification pipeline
  * Compares structure, contrast, and brightness rather than raw pixels
  * Removes many false positives from pixel-perfect comparison
  */
-export class SSIMComparator {
-    options;
+class SSIMComparator {
     constructor(options = {}) {
         this.options = {
             windowSize: 11,
@@ -19,13 +21,13 @@ export class SSIMComparator {
      * Compare two screenshots using SSIM
      */
     async compare(screenshotA, screenshotB, threshold = 0.95) {
-        const [imageA, imageB] = await Promise.all([loadImage(screenshotA), loadImage(screenshotB)]);
+        const [imageA, imageB] = await Promise.all([(0, canvas_1.loadImage)(screenshotA), (0, canvas_1.loadImage)(screenshotB)]);
         const width = Math.min(imageA.width, imageB.width);
         const height = Math.min(imageA.height, imageB.height);
-        const canvasA = createCanvas(width, height);
+        const canvasA = (0, canvas_1.createCanvas)(width, height);
         const ctxA = canvasA.getContext("2d");
         ctxA.drawImage(imageA, 0, 0, width, height);
-        const canvasB = createCanvas(width, height);
+        const canvasB = (0, canvas_1.createCanvas)(width, height);
         const ctxB = canvasB.getContext("2d");
         ctxB.drawImage(imageB, 0, 0, width, height);
         const imageDataA = ctxA.getImageData(0, 0, width, height);
@@ -143,5 +145,5 @@ export class SSIMComparator {
         };
     }
 }
-export default SSIMComparator;
-//# sourceMappingURL=ssim-comparator.js.map
+exports.SSIMComparator = SSIMComparator;
+exports.default = SSIMComparator;

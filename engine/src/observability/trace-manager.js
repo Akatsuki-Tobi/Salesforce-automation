@@ -1,10 +1,12 @@
-import { Trace } from "../types/monitoring.js";
-import { v4 as uuidv4 } from "uuid";
-export class TraceManager {
-    static instance;
-    traces = new Map();
-    contextStack = [];
-    constructor() { }
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TraceManager = void 0;
+const uuid_1 = require("uuid");
+class TraceManager {
+    constructor() {
+        this.traces = new Map();
+        this.contextStack = [];
+    }
     static getInstance() {
         if (!TraceManager.instance) {
             TraceManager.instance = new TraceManager();
@@ -13,7 +15,7 @@ export class TraceManager {
     }
     startTrace(name, metadata) {
         const trace = {
-            id: uuidv4(),
+            id: (0, uuid_1.v4)(),
             name,
             startTime: Date.now(),
             metadata,
@@ -114,4 +116,4 @@ export class TraceManager {
         return result;
     }
 }
-//# sourceMappingURL=trace-manager.js.map
+exports.TraceManager = TraceManager;

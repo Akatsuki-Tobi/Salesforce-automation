@@ -1,10 +1,12 @@
-import { createCanvas, loadImage } from "canvas";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PixelComparator = void 0;
+const canvas_1 = require("canvas");
 /**
  * Pixel Comparison - Step 2 of the visual verification pipeline
  * Fast pixel-level comparison for detecting UI regressions, missing elements, and broken layouts
  */
-export class PixelComparator {
-    options;
+class PixelComparator {
     constructor(options = {}) {
         this.options = {
             threshold: 0.1,
@@ -16,13 +18,13 @@ export class PixelComparator {
      * Compare two screenshot buffers pixel by pixel
      */
     async compare(screenshotA, screenshotB) {
-        const [imageA, imageB] = await Promise.all([loadImage(screenshotA), loadImage(screenshotB)]);
+        const [imageA, imageB] = await Promise.all([(0, canvas_1.loadImage)(screenshotA), (0, canvas_1.loadImage)(screenshotB)]);
         const width = Math.max(imageA.width, imageB.width);
         const height = Math.max(imageA.height, imageB.height);
-        const canvasA = createCanvas(width, height);
+        const canvasA = (0, canvas_1.createCanvas)(width, height);
         const ctxA = canvasA.getContext("2d");
         ctxA.drawImage(imageA, 0, 0, width, height);
-        const canvasB = createCanvas(width, height);
+        const canvasB = (0, canvas_1.createCanvas)(width, height);
         const ctxB = canvasB.getContext("2d");
         ctxB.drawImage(imageB, 0, 0, width, height);
         const imageDataA = ctxA.getImageData(0, 0, width, height);
@@ -123,7 +125,7 @@ export class PixelComparator {
         };
     }
     generateDiffImage(dataA, dataB, diffMask, width, height) {
-        const canvas = createCanvas(width, height);
+        const canvas = (0, canvas_1.createCanvas)(width, height);
         const ctx = canvas.getContext("2d");
         const imageData = ctx.createImageData(width, height);
         const data = imageData.data;
@@ -148,5 +150,5 @@ export class PixelComparator {
         return canvas.toBuffer("image/png");
     }
 }
-export default PixelComparator;
-//# sourceMappingURL=pixel-comparator.js.map
+exports.PixelComparator = PixelComparator;
+exports.default = PixelComparator;

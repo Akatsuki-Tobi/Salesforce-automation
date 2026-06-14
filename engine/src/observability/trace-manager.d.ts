@@ -18,7 +18,7 @@ export declare class TraceManager {
     getChildTraces(parentTraceId: string): Trace[];
     addMetadataToTrace(traceId: string, metadata: Record<string, unknown>): void;
     clearTraces(): void;
-    withTrace<T>(name: string, metadata: Record<string, unknown> | undefined, fn: () => Promise<T>): Promise<T>;
+    withTrace<T>(name: string, metadata: Record<string, unknown>, fn: () => Promise<T>): Promise<T>;
     exportTraces(format?: "json" | "tree"): string;
     private buildTraceTree;
     private formatTrace;

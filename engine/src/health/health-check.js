@@ -1,13 +1,13 @@
-import { HealthCheckResult } from "../types/monitoring.js";
-import { TelemetryService } from "../monitoring/telemetry-service.js";
-export class HealthCheckService {
-    static instance;
-    checks = new Map();
-    checkIntervals = new Map();
-    telemetryService;
-    lastCheckResult = null;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.HealthCheckService = void 0;
+const telemetry_service_js_1 = require("../monitoring/telemetry-service.js");
+class HealthCheckService {
     constructor() {
-        this.telemetryService = TelemetryService.getInstance();
+        this.checks = new Map();
+        this.checkIntervals = new Map();
+        this.lastCheckResult = null;
+        this.telemetryService = telemetry_service_js_1.TelemetryService.getInstance();
     }
     static getInstance() {
         if (!HealthCheckService.instance) {
@@ -154,4 +154,4 @@ export class HealthCheckService {
         }
     }
 }
-//# sourceMappingURL=health-check.js.map
+exports.HealthCheckService = HealthCheckService;

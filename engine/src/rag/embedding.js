@@ -1,7 +1,8 @@
-export class OpenAICompatibleEmbedding {
-    apiKey;
-    model;
-    baseUrl;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.LocalEmbedding = exports.OpenAICompatibleEmbedding = void 0;
+exports.createEmbeddingClient = createEmbeddingClient;
+class OpenAICompatibleEmbedding {
     constructor(options = {}) {
         this.apiKey = options.apiKey ?? process.env.RAG_EMBEDDING_API_KEY ?? process.env.OPENAI_API_KEY ?? "";
         this.model = options.model ?? process.env.RAG_EMBEDDING_MODEL ?? "text-embedding-3-small";
@@ -48,8 +49,9 @@ export class OpenAICompatibleEmbedding {
         return data.data.map((item) => item.embedding);
     }
 }
+exports.OpenAICompatibleEmbedding = OpenAICompatibleEmbedding;
 // Local embedding fallback (stub for now; would integrate sentence-transformers via ONNX or API)
-export class LocalEmbedding {
+class LocalEmbedding {
     async embed(text) {
         // In a real implementation, this would load a local model
         throw new Error("Local embedding not implemented; set RAG_EMBEDDING_BASE_URL to use cloud provider");
@@ -58,11 +60,11 @@ export class LocalEmbedding {
         throw new Error("Local embedding not implemented; set RAG_EMBEDDING_BASE_URL to use cloud provider");
     }
 }
-export function createEmbeddingClient() {
+exports.LocalEmbedding = LocalEmbedding;
+function createEmbeddingClient() {
     const useLocal = process.env.RAG_USE_LOCAL_EMBEDDING === "true";
     if (useLocal) {
         return new LocalEmbedding();
     }
     return new OpenAICompatibleEmbedding();
 }
-//# sourceMappingURL=embedding.js.map

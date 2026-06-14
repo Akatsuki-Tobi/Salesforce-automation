@@ -116,7 +116,7 @@ export class OCRVerifier {
         // Check if this pixel is part of text (high contrast)
         const isText = this.isTextPixel(data, idx);
         if (isText) {
-          const region = = this.floodFillRegion(data, visited, x, y, width, height);
+          const region = this.floodFillRegion(data, visited, x, y, width, height);
           if (region.width > minRegionSize && region.height > minRegionSize) {
             regions.push(region);
           }

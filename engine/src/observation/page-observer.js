@@ -1,8 +1,11 @@
-import { saveObservation } from "./snapshot.js";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.observePage = observePage;
+const snapshot_js_1 = require("./snapshot.js");
 function buildSelector(path) {
     return path.join(" > ");
 }
-export async function observePage(page) {
+async function observePage(page) {
     const url = page.url();
     const title = await page.title();
     const timestamp = Date.now();
@@ -48,7 +51,6 @@ export async function observePage(page) {
         forms,
         breadcrumbs: [title],
     };
-    saveObservation(observation);
+    (0, snapshot_js_1.saveObservation)(observation);
     return observation;
 }
-//# sourceMappingURL=page-observer.js.map

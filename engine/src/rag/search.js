@@ -1,8 +1,9 @@
-import { KnowledgeScore, KnowledgeType } from "../types/agent.js";
-export class SearchProvider {
-    serperApiKey;
-    searchedQueries = new Set();
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SearchProvider = void 0;
+class SearchProvider {
     constructor(serperApiKey) {
+        this.searchedQueries = new Set();
         this.serperApiKey = serperApiKey ?? process.env.SERPER_API_KEY ?? "";
     }
     async search(query) {
@@ -95,4 +96,4 @@ export class SearchProvider {
         return Array.from(this.searchedQueries);
     }
 }
-//# sourceMappingURL=search.js.map
+exports.SearchProvider = SearchProvider;

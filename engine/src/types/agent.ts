@@ -222,6 +222,6 @@ export class DOMVisionFusion {
       }
       
       return { element, visionRegion: null }
-    }
+    }))
   }
 }

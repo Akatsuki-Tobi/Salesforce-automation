@@ -1,10 +1,12 @@
-import { TelemetryEvent, TelemetryEventType } from "../types/monitoring.js";
-export class TelemetryService {
-    static instance;
-    eventBuffer = [];
-    eventListeners = [];
-    maxBufferSize = 1000;
-    constructor() { }
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TelemetryService = void 0;
+class TelemetryService {
+    constructor() {
+        this.eventBuffer = [];
+        this.eventListeners = [];
+        this.maxBufferSize = 1000;
+    }
     static getInstance() {
         if (!TelemetryService.instance) {
             TelemetryService.instance = new TelemetryService();
@@ -59,4 +61,4 @@ export class TelemetryService {
         }
     }
 }
-//# sourceMappingURL=telemetry-service.js.map
+exports.TelemetryService = TelemetryService;

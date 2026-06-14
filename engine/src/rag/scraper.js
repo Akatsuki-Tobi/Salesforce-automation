@@ -1,4 +1,7 @@
-export class Scraper {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Scraper = void 0;
+class Scraper {
     async scrapeUrl(url) {
         try {
             const response = await fetch(url, {
@@ -75,4 +78,4 @@ export class Scraper {
         };
     }
 }
-//# sourceMappingURL=scraper.js.map
+exports.Scraper = Scraper;

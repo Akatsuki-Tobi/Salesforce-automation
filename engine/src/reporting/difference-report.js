@@ -1,19 +1,6 @@
-import { Difference } from './types';
-import { PixelComparisonResult } from './pixel-comparator';
-import { SSIMResult } from './ssim-comparator';
-import { FeatureMatchResult } from './feature-matcher';
-import { OCRVerificationResult } from './ocr-verifier';
-import { ObjectDetectionResult } from './object-detector';
-import { SemanticVisionResult } from './semantic-vision';
-import { DOMVisionFusionResult } from './dom-vision-fusion';
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 class ExplainableDifferenceReport {
-    pixelComparison;
-    ssim;
-    featureMatches;
-    ocr;
-    objectDetection;
-    semanticVision;
-    domVision;
     constructor(pixelComparison, ssim, featureMatches, ocr, objectDetection, semanticVision, domVision) {
         this.pixelComparison = pixelComparison;
         this.ssim = ssim;
@@ -37,4 +24,3 @@ Match: ${this.pixelComparison.match ? '✅' : '❌'}\n`;
         return report;
     }
 }
-//# sourceMappingURL=difference-report.js.map

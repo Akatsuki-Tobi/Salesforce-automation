@@ -1,11 +1,11 @@
-import { VectorStore } from "./store.js";
-import { createEmbeddingClient } from "./embedding.js";
-export class Retriever {
-    store;
-    embedder;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Retriever = void 0;
+const embedding_js_1 = require("./embedding.js");
+class Retriever {
     constructor(store) {
         this.store = store;
-        this.embedder = createEmbeddingClient();
+        this.embedder = (0, embedding_js_1.createEmbeddingClient)();
     }
     async retrieve(query, topK = 5) {
         const start = Date.now();
@@ -56,4 +56,4 @@ export class Retriever {
             .map(({ _rerankScore, ...rest }) => rest);
     }
 }
-//# sourceMappingURL=retriever.js.map
+exports.Retriever = Retriever;

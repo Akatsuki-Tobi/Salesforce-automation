@@ -1,18 +1,23 @@
-import { createCanvas, loadImage } from "canvas";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ObjectDetector = void 0;
+const canvas_1 = require("canvas");
 /**
  * Object Detector - Step 6 of the visual verification pipeline
  * Detects UI elements like buttons, textboxes, dropdowns, images, icons, checkboxes, modals
  * Verifies position, count, hierarchy, and visibility
  */
-export class ObjectDetector {
-    objectTypes = ["button", "textbox", "dropdown", "image", "icon", "checkbox", "modal", "link", "label", "table"];
+class ObjectDetector {
+    constructor() {
+        this.objectTypes = ["button", "textbox", "dropdown", "image", "icon", "checkbox", "modal", "link", "label", "table"];
+    }
     /**
      * Detect objects in a screenshot
      * Note: In production, this would use a trained ML model like YOLO or DETR
      */
     async detectObjects(screenshot) {
-        const image = await loadImage(screenshot);
-        const canvas = createCanvas(image.width, image.height);
+        const image = await (0, canvas_1.loadImage)(screenshot);
+        const canvas = (0, canvas_1.createCanvas)(image.width, image.height);
         const ctx = canvas.getContext("2d");
         ctx.drawImage(image, 0, 0);
         const imageData = ctx.getImageData(0, 0, image.width, image.height);
@@ -184,7 +189,6 @@ export class ObjectDetector {
         }
         return null;
     }
-    MEA;
     isRegionStart(data, x, y, width) {
         const idx = (y * width + x) * 4;
         // Check for edge-like pixel (high contrast)
@@ -269,5 +273,5 @@ export class ObjectDetector {
         return Math.sqrt(Math.pow(centerA.x - centerB.x, 2) + Math.pow(centerA.y - centerB.y, 2));
     }
 }
-export default ObjectDetector;
-//# sourceMappingURL=object-detector.js.map
+exports.ObjectDetector = ObjectDetector;
+exports.default = ObjectDetector;

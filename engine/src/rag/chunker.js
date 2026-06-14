@@ -1,6 +1,7 @@
-export class Chunker {
-    chunkSize;
-    overlap;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Chunker = void 0;
+class Chunker {
     constructor(options = {}) {
         this.chunkSize = options.chunkSize ?? 750; // ~3000 chars
         this.overlap = options.overlap ?? 100; // ~400 chars
@@ -45,4 +46,4 @@ export class Chunker {
         return chunks;
     }
 }
-//# sourceMappingURL=chunker.js.map
+exports.Chunker = Chunker;

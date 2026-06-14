@@ -9,4 +9,3 @@ describe('example', () => {
         expect((0, example_1.default)()).toBe(true);
     });
 });
-//# sourceMappingURL=example.test.js.map

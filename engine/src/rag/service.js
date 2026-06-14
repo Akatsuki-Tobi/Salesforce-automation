@@ -1,31 +1,27 @@
-import { SearchProvider } from "./search.js";
-import { Scraper } from "./scraper.js";
-import { KnowledgeValidator } from "./validator.js";
-import { Chunker } from "./chunker.js";
-import { createEmbeddingClient } from "./embedding.js";
-import { VectorStore } from "./store.js";
-import { Retriever } from "./retriever.js";
-import { RAG_MAX_SEARCHES, RAG_MAX_SCRAPED_PAGES, RAG_MAX_RAG_DOCUMENTS } from "../types/agent.js";
-import { recordSearchedQuery, consumeRagBudget } from "../world-model/state-manager.js";
-export class RAGService {
-    store;
-    retriever;
-    searchProvider;
-    scraper;
-    validator;
-    chunker;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.RAGService = void 0;
+const search_js_1 = require("./search.js");
+const scraper_js_1 = require("./scraper.js");
+const validator_js_1 = require("./validator.js");
+const chunker_js_1 = require("./chunker.js");
+const embedding_js_1 = require("./embedding.js");
+const retriever_js_1 = require("./retriever.js");
+const agent_js_1 = require("../types/agent.js");
+const state_manager_js_1 = require("../world-model/state-manager.js");
+class RAGService {
     constructor() {
-        this.store = new VectorStore();
-        this.retriever = new Retriever(this.store);
-        this.searchProvider = new SearchProvider();
-        this.scraper = new Scraper();
-        this.validator = new KnowledgeValidator();
-        this.chunker = new Chunker();
+        this.store = new store_js_1.VectorStore();
+        this.retriever = new retriever_js_1.Retriever(this.store);
+        this.searchProvider = new search_js_1.SearchProvider();
+        this.scraper = new scraper_js_1.Scraper();
+        this.validator = new validator_js_1.KnowledgeValidator();
+        this.chunker = new chunker_js_1.Chunker();
     }
     async fillKnowledgeGap(query) {
         // Record that we are searching for this query
-        recordSearchedQuery(query);
-        consumeRagBudget({ searches: 1 });
+        (0, state_manager_js_1.recordSearchedQuery)(query);
+        (0, state_manager_js_1.consumeRagBudget)({ searches: 1 });
         // Perform search
         const searchResults = await this.searchProvider.search(query);
         if (searchResults.length === 0) {
@@ -34,15 +30,15 @@ export class RAGService {
         // Scrape, validate, chunk, embed, and store
         let pagesScraped = 0;
         let documentsAdded = 0;
-        for (const result of searchResults.slice(0, RAG_MAX_SEARCHES)) {
-            if (pagesScraped >= RAG_MAX_SCRAPED_PAGES)
+        for (const result of searchResults.slice(0, agent_js_1.RAG_MAX_SEARCHES)) {
+            if (pagesScraped >= agent_js_1.RAG_MAX_SCRAPED_PAGES)
                 break;
             try {
                 const scraped = await this.scraper.scrapeUrl(result.url);
                 const validation = this.validator.validate(scraped, query);
                 if (validation.approved) {
                     pagesScraped++;
-                    consumeRagBudget({ pages: 1 });
+                    (0, state_manager_js_1.consumeRagBudget)({ pages: 1 });
                     // Chunk the content
                     const chunks = this.chunker.chunk(scraped.content, {
                         source: scraped.title || result.title,
@@ -51,9 +47,9 @@ export class RAGService {
                         knowledgeType: validation.knowledgeType,
                     });
                     // Embed and store each chunk
-                    const embedder = createEmbeddingClient();
+                    const embedder = (0, embedding_js_1.createEmbeddingClient)();
                     for (const chunk of chunks) {
-                        if (documentsAdded >= RAG_MAX_RAG_DOCUMENTS)
+                        if (documentsAdded >= agent_js_1.RAG_MAX_RAG_DOCUMENTS)
                             break;
                         try {
                             const embedding = await embedder.embed(chunk.content);
@@ -63,7 +59,7 @@ export class RAGService {
                             };
                             this.store.add([knowledgeChunk]);
                             documentsAdded++;
-                            consumeRagBudget({ documents: 1 });
+                            (0, state_manager_js_1.consumeRagBudget)({ documents: 1 });
                         }
                         catch (embedError) {
                             console.error("Failed to embed chunk:", embedError);
@@ -80,4 +76,4 @@ export class RAGService {
         return context;
     }
 }
-//# sourceMappingURL=service.js.map
+exports.RAGService = RAGService;

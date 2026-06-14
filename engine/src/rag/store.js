@@ -1,5 +1,10 @@
-export class InMemoryVectorStore {
-    items = [];
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.InMemoryVectorStore = void 0;
+class InMemoryVectorStore {
+    constructor() {
+        this.items = [];
+    }
     add(chunks) {
         for (const chunk of chunks) {
             if (chunk.embedding) {
@@ -38,4 +43,4 @@ export class InMemoryVectorStore {
         return denom === 0 ? 0 : dot / denom;
     }
 }
-//# sourceMappingURL=store.js.map
+exports.InMemoryVectorStore = InMemoryVectorStore;

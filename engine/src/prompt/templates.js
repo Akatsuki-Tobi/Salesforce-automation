@@ -1,7 +1,11 @@
-export function buildSystemPrompt() {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.buildSystemPrompt = buildSystemPrompt;
+exports.buildUserPrompt = buildUserPrompt;
+function buildSystemPrompt() {
     return `You are a web automation planning agent. Use only observed page elements and state from the world model. Never invent selectors. Prefer visible interactive elements and explain expected outcomes clearly. Always return valid JSON in the defined planner output schema.`;
 }
-export function buildUserPrompt(worldModel) {
+function buildUserPrompt(worldModel) {
     const observation = worldModel.observations[worldModel.observations.length - 1];
     let prompt = `Goal: ${worldModel.goal}\n` +
         `Current URL: ${worldModel.browser.currentUrl}\n` +
@@ -27,4 +31,3 @@ export function buildUserPrompt(worldModel) {
     prompt += `Return a planner output JSON object with thought, confidence, expected_outcome, action, params, and is_complete.`;
     return prompt;
 }
-//# sourceMappingURL=templates.js.map

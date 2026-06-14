@@ -65,7 +65,6 @@ export declare class ObjectDetector {
     private detectObjectsHeuristic;
     private detectRectangularRegions;
     private findRectangularRegion;
-    MEA: any;
     private isRegionStart;
     private isEdge;
     private detectImageRegions;

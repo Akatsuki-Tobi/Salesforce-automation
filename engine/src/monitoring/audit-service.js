@@ -1,16 +1,15 @@
-import { AuditRecord, FailureAnalysis, FailureCategory, } from "../types/monitoring.js";
-import { TelemetryService } from "./telemetry-service.js";
-import { writeFileSync, mkdirSync, existsSync, readdirSync, readFileSync } from "fs";
-import { join } from "path";
-export class AuditService {
-    static instance;
-    auditRecords = [];
-    failureAnalyses = [];
-    auditDir;
-    telemetryService;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AuditService = void 0;
+const telemetry_service_js_1 = require("./telemetry-service.js");
+const fs_1 = require("fs");
+const path_1 = require("path");
+class AuditService {
     constructor() {
-        this.telemetryService = TelemetryService.getInstance();
-        this.auditDir = join(process.cwd(), "logs", "audit");
+        this.auditRecords = [];
+        this.failureAnalyses = [];
+        this.telemetryService = telemetry_service_js_1.TelemetryService.getInstance();
+        this.auditDir = (0, path_1.join)(process.cwd(), "logs", "audit");
         this.ensureAuditDir();
         this.setupEventListeners();
         this.loadExistingRecords();
@@ -22,8 +21,8 @@ export class AuditService {
         return AuditService.instance;
     }
     ensureAuditDir() {
-        if (!existsSync(this.auditDir)) {
-            mkdirSync(this.auditDir, { recursive: true });
+        if (!(0, fs_1.existsSync)(this.auditDir)) {
+            (0, fs_1.mkdirSync)(this.auditDir, { recursive: true });
         }
     }
     setupEventListeners() {
@@ -33,11 +32,11 @@ export class AuditService {
     }
     loadExistingRecords() {
         try {
-            const files = readdirSync(this.auditDir);
+            const files = (0, fs_1.readdirSync)(this.auditDir);
             for (const file of files) {
                 if (file.endsWith(".json")) {
-                    const filePath = join(this.auditDir, file);
-                    const content = readFileSync(filePath, "utf-8");
+                    const filePath = (0, path_1.join)(this.auditDir, file);
+                    const content = (0, fs_1.readFileSync)(filePath, "utf-8");
                     const record = JSON.parse(content);
                     if ("timestamp" in record && "goal" in record) {
                         this.auditRecords.push(record);
@@ -73,14 +72,14 @@ export class AuditService {
     }
     saveAuditRecord(record) {
         const fileName = `audit-${record.timestamp.replace(/[:.]/g, "-")}.json`;
-        const filePath = join(this.auditDir, fileName);
-        writeFileSync(filePath, JSON.stringify(record, null, 2));
+        const filePath = (0, path_1.join)(this.auditDir, fileName);
+        (0, fs_1.writeFileSync)(filePath, JSON.stringify(record, null, 2));
     }
     addFailureAnalysis(analysis) {
         this.failureAnalyses.push(analysis);
         const fileName = `failure-${analysis.rootCause.replace(/\s+/g, "-")}-${Date.now()}.json`;
-        const filePath = join(this.auditDir, fileName);
-        writeFileSync(filePath, JSON.stringify(analysis, null, 2));
+        const filePath = (0, path_1.join)(this.auditDir, fileName);
+        (0, fs_1.writeFileSync)(filePath, JSON.stringify(analysis, null, 2));
     }
     getAuditRecords() {
         return [...this.auditRecords];
@@ -137,4 +136,4 @@ export class AuditService {
         this.failureAnalyses = [];
     }
 }
-//# sourceMappingURL=audit-service.js.map
+exports.AuditService = AuditService;

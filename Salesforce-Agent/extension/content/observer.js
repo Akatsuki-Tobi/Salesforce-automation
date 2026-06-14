@@ -1,5 +1,4 @@
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 function observePage() {
     // TO DO: implement page observation
 }
@@ -12,4 +11,3 @@ function observeAccessibility() {
 function captureSnapshot() {
     // TO DO: implement snapshot capture
 }
-//# sourceMappingURL=observer.js.map

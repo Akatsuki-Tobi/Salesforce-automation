@@ -1,4 +1,7 @@
-export async function validatePlannedAction(plan, page) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.validatePlannedAction = validatePlannedAction;
+async function validatePlannedAction(plan, page) {
     if (!page) {
         return { approved: false, reason: "No browser page available for validation." };
     }
@@ -30,4 +33,3 @@ export async function validatePlannedAction(plan, page) {
     }
     return { approved: false, reason: `Unsupported action type: ${action}` };
 }
-//# sourceMappingURL=action-validator.js.map

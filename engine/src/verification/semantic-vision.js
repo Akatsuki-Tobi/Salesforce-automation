@@ -1,11 +1,13 @@
-import { createCanvas, loadImage } from "canvas";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SemanticVision = void 0;
+const canvas_1 = require("canvas");
 /**
  * Semantic Vision - Step 7 of the visual verification pipeline
  * Uses Vision Language Models to describe UI and compare intent
  * Example: "Blue login button" vs "Blue sign-in button" = Pass
  */
-export class SemanticVision {
-    options;
+class SemanticVision {
     constructor(options = {}) {
         this.options = {
             model: "default",
@@ -17,8 +19,8 @@ export class SemanticVision {
      * Note: In production, this would call a VLM API (OpenAI, Anthropic, etc.)
      */
     async describeScreenshot(screenshot) {
-        const image = await loadImage(screenshot);
-        const canvas = createCanvas(image.width, image.height);
+        const image = await (0, canvas_1.loadImage)(screenshot);
+        const canvas = (0, canvas_1.createCanvas)(image.width, image.height);
         const ctx = canvas.getContext("2d");
         ctx.drawImage(image, 0, 0);
         // In production, this would send the image to a VLM
@@ -300,5 +302,5 @@ export class SemanticVision {
         return footerPixels > width * footerHeight * 0.3;
     }
 }
-export default SemanticVision;
-//# sourceMappingURL=semantic-vision.js.map
+exports.SemanticVision = SemanticVision;
+exports.default = SemanticVision;

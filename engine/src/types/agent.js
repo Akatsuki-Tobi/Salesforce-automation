@@ -1,4 +1,7 @@
-export var AgentState;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DOMVisionFusion = exports.DOMAIN_WEIGHTS = exports.RAG_TOP_K = exports.RAG_CONFIDENCE_THRESHOLD = exports.RAG_MAX_RESEARCH_TIME = exports.RAG_MAX_CONTEXT_TOKENS = exports.RAG_MAX_RAG_DOCUMENTS = exports.RAG_MAX_SCRAPED_PAGES = exports.RAG_MAX_SEARCHES = exports.KnowledgeType = exports.LearningState = exports.AgentState = void 0;
+var AgentState;
 (function (AgentState) {
     AgentState["OBSERVE"] = "OBSERVE";
     AgentState["PLAN"] = "PLAN";
@@ -9,9 +12,9 @@ export var AgentState;
     AgentState["RECOVER"] = "RECOVER";
     AgentState["COMPLETE"] = "COMPLETE";
     AgentState["FAILED"] = "FAILED";
-})(AgentState || (AgentState = {}));
+})(AgentState || (exports.AgentState = AgentState = {}));
 // ==================== RAG Types ====================
-export var LearningState;
+var LearningState;
 (function (LearningState) {
     LearningState["KNOWN"] = "KNOWN";
     LearningState["UNKNOWN"] = "UNKNOWN";
@@ -19,8 +22,8 @@ export var LearningState;
     LearningState["LEARNING"] = "LEARNING";
     LearningState["VERIFIED"] = "VERIFIED";
     LearningState["REJECTED"] = "REJECTED";
-})(LearningState || (LearningState = {}));
-export var KnowledgeType;
+})(LearningState || (exports.LearningState = LearningState = {}));
+var KnowledgeType;
 (function (KnowledgeType) {
     KnowledgeType["DOCUMENTATION"] = "DOCUMENTATION";
     KnowledgeType["WORKFLOW"] = "WORKFLOW";
@@ -28,17 +31,17 @@ export var KnowledgeType;
     KnowledgeType["ERROR_FIX"] = "ERROR_FIX";
     KnowledgeType["UI_PATTERN"] = "UI_PATTERN";
     KnowledgeType["REFERENCE"] = "REFERENCE";
-})(KnowledgeType || (KnowledgeType = {}));
+})(KnowledgeType || (exports.KnowledgeType = KnowledgeType = {}));
 // ==================== RAG Budget Constants ====================
-export const RAG_MAX_SEARCHES = 3;
-export const RAG_MAX_SCRAPED_PAGES = 10;
-export const RAG_MAX_RAG_DOCUMENTS = 20;
-export const RAG_MAX_CONTEXT_TOKENS = 15000;
-export const RAG_MAX_RESEARCH_TIME = 120000; // ms
-export const RAG_CONFIDENCE_THRESHOLD = 0.70;
-export const RAG_TOP_K = 5;
+exports.RAG_MAX_SEARCHES = 3;
+exports.RAG_MAX_SCRAPED_PAGES = 10;
+exports.RAG_MAX_RAG_DOCUMENTS = 20;
+exports.RAG_MAX_CONTEXT_TOKENS = 15000;
+exports.RAG_MAX_RESEARCH_TIME = 120000; // ms
+exports.RAG_CONFIDENCE_THRESHOLD = 0.70;
+exports.RAG_TOP_K = 5;
 // Domain authority weights
-export const DOMAIN_WEIGHTS = {
+exports.DOMAIN_WEIGHTS = {
     "trailhead.salesforce.com": 10,
     "developer.salesforce.com": 10,
     "salesforce.com": 10,
@@ -47,14 +50,8 @@ export const DOMAIN_WEIGHTS = {
     "stackoverflow.com": 6,
     "community.salesforce.com": 6
 };
-import { JSDOM } from 'jsdom';
-import { SemanticVisionResult } from './semantic-vision';
-import { ObjectDetectionResult } from './object-detector';
-export class DOMVisionFusion {
-    dom;
-    screenshot;
-    semanticVision;
-    objectDetection;
+const jsdom_1 = require("jsdom");
+class DOMVisionFusion {
     constructor(dom, screenshot, semanticVision, objectDetection) {
         this.dom = dom;
         this.screenshot = screenshot;
@@ -62,7 +59,7 @@ export class DOMVisionFusion {
         this.objectDetection = objectDetection;
     }
     async alignDOMWithVision() {
-        const dom = new JSDOM(this.dom);
+        const dom = new jsdom_1.JSDOM(this.dom);
         const elements = Array.from(dom.window.document.body.children);
         return Promise.all(elements.map(async (element) => {
             const bbox = VisionUtils.getElementBoundingBox(element);
@@ -82,4 +79,4 @@ export class DOMVisionFusion {
         }));
     }
 }
-//# sourceMappingURL=agent.js.map
+exports.DOMVisionFusion = DOMVisionFusion;

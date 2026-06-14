@@ -1,6 +1,42 @@
-import { createCanvas, loadImage, Image } from "canvas";
-import * as fs from "fs";
-import * as path from "path";
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ScreenshotNormalizer = void 0;
+const canvas_1 = require("canvas");
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 const DEFAULT_OPTIONS = {
     targetWidth: 1920,
     targetHeight: 1080,
@@ -16,8 +52,7 @@ const DEFAULT_OPTIONS = {
  * Screenshot Normalizer - Step 1 of the visual verification pipeline
  * Normalizes screenshots to reduce false positives from environmental differences
  */
-export class ScreenshotNormalizer {
-    options;
+class ScreenshotNormalizer {
     constructor(options = {}) {
         this.options = { ...DEFAULT_OPTIONS, ...options };
     }
@@ -25,10 +60,10 @@ export class ScreenshotNormalizer {
      * Normalize a screenshot buffer
      */
     async normalize(screenshotBuffer) {
-        const image = await loadImage(screenshotBuffer);
+        const image = await (0, canvas_1.loadImage)(screenshotBuffer);
         const originalWidth = image.width;
         const originalHeight = image.height;
-        const canvas = createCanvas(this.options.targetWidth, this.options.targetHeight);
+        const canvas = (0, canvas_1.createCanvas)(this.options.targetWidth, this.options.targetHeight);
         const ctx = canvas.getContext("2d");
         const processingSteps = [];
         // Step 1: Scale to target resolution
@@ -100,7 +135,7 @@ export class ScreenshotNormalizer {
     removeAnimationArtifacts(ctx, width, height) {
         // Apply a very slight Gaussian-like blur to reduce animation noise
         ctx.filter = "blur(0.5px)";
-        const tempCanvas = createCanvas(width, height);
+        const tempCanvas = (0, canvas_1.createCanvas)(width, height);
         const tempCtx = tempCanvas.getContext("2d");
         tempCtx.drawImage(ctx.canvas, 0, 0);
         ctx.filter = "none";
@@ -117,7 +152,7 @@ export class ScreenshotNormalizer {
         // 3. Anti-alias consistently
         // For now, we apply a subtle sharpening filter
         ctx.filter = "contrast(1.05)";
-        const tempCanvas = createCanvas(width, height);
+        const tempCanvas = (0, canvas_1.createCanvas)(width, height);
         const tempCtx = tempCanvas.getContext("2d");
         tempCtx.drawImage(ctx.canvas, 0, 0);
         ctx.filter = "none";
@@ -180,5 +215,5 @@ export class ScreenshotNormalizer {
         fs.writeFileSync(filePath, normalizedScreenshot.buffer);
     }
 }
-export default ScreenshotNormalizer;
-//# sourceMappingURL=screenshot-normalizer.js.map
+exports.ScreenshotNormalizer = ScreenshotNormalizer;
+exports.default = ScreenshotNormalizer;

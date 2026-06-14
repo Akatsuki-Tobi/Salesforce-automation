@@ -1,11 +1,13 @@
-import { createCanvas, loadImage } from "canvas";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.OCRVerifier = void 0;
+const canvas_1 = require("canvas");
 /**
  * OCR Verifier - Step 5 of the visual verification pipeline
  * Extracts and compares text from screenshots
  * Useful for forms, invoices, tables, and documents
  */
-export class OCRVerifier {
-    options;
+class OCRVerifier {
     constructor(options = {}) {
         this.options = {
             languages: ["eng"],
@@ -18,8 +20,8 @@ export class OCRVerifier {
      * Note: In production, this would use Tesseract.js or a cloud OCR service
      */
     async extractText(screenshot) {
-        const image = await loadImage(screenshot);
-        const canvas = createCanvas(image.width, image.height);
+        const image = await (0, canvas_1.loadImage)(screenshot);
+        const canvas = (0, canvas_1.createCanvas)(image.width, image.height);
         const ctx = canvas.getContext("2d");
         ctx.drawImage(image, 0, 0);
         const imageData = ctx.getImageData(0, 0, image.width, image.height);
@@ -76,7 +78,7 @@ export class OCRVerifier {
                 // Check if this pixel is part of text (high contrast)
                 const isText = this.isTextPixel(data, idx);
                 if (isText) {
-                    const region =  = this.floodFillRegion(data, visited, x, y, width, height);
+                    const region = this.floodFillRegion(data, visited, x, y, width, height);
                     if (region.width > minRegionSize && region.height > minRegionSize) {
                         regions.push(region);
                     }
@@ -178,5 +180,5 @@ export class OCRVerifier {
         return { matched, missing, extra };
     }
 }
-export default OCRVerifier;
-//# sourceMappingURL=ocr-verifier.js.map
+exports.OCRVerifier = OCRVerifier;
+exports.default = OCRVerifier;

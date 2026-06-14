@@ -1,4 +1,7 @@
-export class GapDetector {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.GapDetector = void 0;
+class GapDetector {
     detect(worldModel, plan, verificationSuccess) {
         const step = worldModel.status.stepCount;
         const searchedQueries = new Set(worldModel.searchedQueries ?? []);
@@ -68,4 +71,4 @@ export class GapDetector {
         return `${goal} ${action} why didn't I see "${expected}"`;
     }
 }
-//# sourceMappingURL=gap-detector.js.map
+exports.GapDetector = GapDetector;

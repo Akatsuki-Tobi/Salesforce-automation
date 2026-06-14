@@ -244,7 +244,7 @@ export class ObjectDetector {
     return null;
   }
 
- MEA  private isRegionStart(data: Uint8ClampedArray, x: number, y: number, width: number): boolean {
+  private isRegionStart(data: Uint8ClampedArray, x: number, y: number, width: number): boolean {
     const idx = (y * width + x) * 4;
     // Check for edge-like pixel (high contrast)
     const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
