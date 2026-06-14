@@ -1,6 +1,6 @@
 # Salesforce-proxy
 ## Project Overview
-Salesforce-proxy is a Salesforce automation system with AI-powered browser agent. It is built using TypeScript/Node.js, Playwright, NVIDIA Nemotron-3-Ultra LLM, ChromaDB/Qdrant (vector memory), Jest, and Python (some tooling).
+Salesforce-proxy is a Salesforce automation system with AI-powered browser agent. It is built using TypeScript/Node.js, Playwright, NVIDIA Nemotron-3-Ultra, ChromaDB/Qdrant, Jest, and Python tooling.
 
 ## Architecture
 The project consists of the following components:
@@ -14,7 +14,7 @@ The project consists of the following components:
 * Browser automation
 * AI-driven planning
 * Visual verification (OCR, object detection)
-* Self-healing/recovery
+* Self-healing recovery
 * Audit logging
 * Health monitoring
 
@@ -22,10 +22,10 @@ The project consists of the following components:
 * Node.js
 * TypeScript
 * Playwright
-* NVIDIA Nemotron-3-Ultra LLM
-* ChromaDB/Qdrant (vector memory)
+* NVIDIA Nemotron-3-Ultra
+* ChromaDB/Qdrant
 * Jest
-* Python (some tooling)
+* Python tooling
 
 ## Installation
 * Root: `npm install`
