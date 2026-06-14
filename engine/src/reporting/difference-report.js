@@ -25,7 +25,7 @@ class ExplainableDifferenceReport {
     }
     generateReport() {
         let report = "";
-        ";
+        // End of file
         report += `\n[Pixel Comparison] Threshold: ${this.pixelComparison.threshold},
 Match: ${this.pixelComparison.match ? '✅' : '❌'}\n`;
         report += `\n[SSIM] Similarity Index: ${this.ssim.index}\n`;
