@@ -5,8 +5,15 @@ node_modules/
 *.env
 
 # Built output
+dist/
 engine/dist/
+*.js
+*.d.ts
+*.map
 
 # Logs and observations
 logs/
 observations/
+
+# Test coverage
+coverage/
