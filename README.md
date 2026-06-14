@@ -1,12 +1,19 @@
 # Salesforce-proxy
 
-[![GitHub stars](https://img.shields.io/github/stars/proxystar4u/Salesforce-proxy?style=social)](https://github.com/proxystar4u/Salesforce-proxy/stargazers)
-[![GitHub issues](https://img.shields.io/github/issues/proxystar4u/Salesforce-proxy)](https://github.com/proxystar4u/Salesforce-proxy/issues)
-[![GitHub license](https://img.shields.io/github/license/proxystar4u/Salesforce-proxy)](https://github.com/proxystar4u/Salesforce-proxy/blob/main/LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/proxystar4u/Salesforce-proxy.svg)]
+[![GitHub Issues](https://img.shields.io/github/issues/proxystar4u/Salesforce-proxy.svg)]
+[![GitHub License](https://img.shields.io/github/license/proxystar4u/Salesforce-proxy.svg)]
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-green)](https://nodejs.org/)
 [![Playwright](https://img.shields.io/badge/Playwright-Latest-red)](https://playwright.dev/)
 [![Jest](https://img.shields.io/badge/Jest-30.4.2-red)](https://jestjs.io/)
+
+## Table of Contents
+1. [Quick Start](#quick-start)
+2. [Architecture](#architecture)
+3. [Configuration](#configuration)
+4. [Contributing](#contributing)
+5. [Advanced Usage](#advanced-usage)
 
 ## Project Overview
 
@@ -339,7 +346,7 @@ Salesforce-proxy est un système d'automatisation Salesforce alimenté par l'IA 
 - **Automatisation Intelligente du Navigateur**: Contrôle du navigateur avec Playwright
 - **Moteur de Planification IA**: NVIDIA Nemotron-3-Ultra LLM
 - **Vérification Visuelle**: OCR et détection d'objets
-- **Récupération Automatique**: Détection et récupération automatique des erreurs
+- **Récupération Automatique**: Détection et récupération automática des erreurs
 - **Journal d'Audit**: Journalisation complète des actions
 - **Surveillance de la Santé**: Tableau de bord de santé du système en temps réel
 - **Mémoire Vectorielle**: Rejeu d'expérience avec ChromaDB/Qdrant
