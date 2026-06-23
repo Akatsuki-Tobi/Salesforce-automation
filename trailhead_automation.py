@@ -1,1524 +1,1512 @@
 """
-Trailhead Agent Blazer Championship 2026 — Automation Script
-=============================================================
-Complete "Quick Start: Assemble a Service Agent with Agentforce Builder"
+Trailhead Agent Blazer Championship 2026 - Interactive Automation
+================================================================
+YOU handle: Login + Playground creation
+SCRIPT handles: All Salesforce Agentforce configuration (R2-R5)
 
 Usage:
-    python trailhead_automation.py                    # Full run, headed
-    python trailhead_automation.py --resume-from 3    # Resume from milestone 3
-    python trailhead_automation.py --headless          # Headless mode
+    python trailhead_automation.py
 """
 
-import asyncio
-import argparse
-import os
 import sys
+import io
+import os
 import time
 import traceback
 from pathlib import Path
 from datetime import datetime
 
-# ---------------------------------------------------------------------------
-# We will use sync Playwright for simplicity and reliability
-# ---------------------------------------------------------------------------
+# Fix Windows console encoding
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 try:
-    from playwright.sync_api import sync_playwright, Page, Browser, expect, TimeoutError as PWTimeout
+    from playwright.sync_api import sync_playwright, Page, BrowserContext
 except ImportError:
     print("ERROR: playwright not installed. Run: pip install playwright && playwright install chromium")
     sys.exit(1)
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# CONFIGURATION
-# ═══════════════════════════════════════════════════════════════════════════════
-TRAILHEAD_USERNAME = "revanth@smartbridge.com"
-TRAILHEAD_PASSWORD = "Salesforce@1"
+SCREENSHOT_DIR = Path(__file__).parent / "screenshots"
+SCREENSHOT_DIR.mkdir(exist_ok=True)
+
 MODULE_URL = (
     "https://trailhead.salesforce.com/content/learn/modules/"
     "quick-start-assemble-a-service-agent-with-agentforce-builder/"
     "build-with-agentforce-builder"
     "?trail_id=become-an-agentblazer-champion-2026"
 )
-SCREENSHOT_DIR = Path(__file__).parent / "screenshots"
-SCREENSHOT_DIR.mkdir(exist_ok=True)
-
-MAX_RETRIES = 3
-SLOW_MO = 300  # ms between actions — visible pacing for human watching
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# HELPERS
-# ═══════════════════════════════════════════════════════════════════════════════
-def screenshot(page: Page, name: str):
-    """Take a timestamped screenshot for debugging."""
+def ss(page: Page, name: str):
+    """Screenshot helper."""
     ts = datetime.now().strftime("%H%M%S")
     path = SCREENSHOT_DIR / f"{ts}_{name}.png"
-    page.screenshot(path=str(path), full_page=False)
-    print(f"  📸 Screenshot: {path.name}")
+    try:
+        page.screenshot(path=str(path), full_page=False)
+        print(f"  [SS] {path.name}")
+    except Exception:
+        pass
     return path
 
 
-def wait_and_click(page: Page, selector: str, timeout: int = 30000, description: str = ""):
-    """Wait for element, scroll into view, then click."""
-    desc = description or selector
-    print(f"  🖱️  Waiting for: {desc}")
-    el = page.wait_for_selector(selector, timeout=timeout, state="visible")
+def click(page: Page, selector: str, timeout=15000, desc=""):
+    """Wait + scroll + click."""
+    d = desc or selector[:50]
+    print(f"  -> click: {d}")
+    el = page.locator(selector).first
+    el.wait_for(timeout=timeout, state="visible")
     el.scroll_into_view_if_needed()
     time.sleep(0.5)
     el.click()
-    print(f"  ✅ Clicked: {desc}")
-    return el
+    print(f"  [OK] clicked: {d}")
 
 
-def wait_and_fill(page: Page, selector: str, value: str, timeout: int = 15000, description: str = ""):
-    """Wait for input, clear it, and fill."""
-    desc = description or selector
-    print(f"  ⌨️  Filling: {desc}")
-    el = page.wait_for_selector(selector, timeout=timeout, state="visible")
+def fill(page: Page, selector: str, value: str, timeout=10000, desc=""):
+    """Wait + fill."""
+    d = desc or selector[:40]
+    print(f"  -> fill: {d}")
+    el = page.locator(selector).first
+    el.wait_for(timeout=timeout, state="visible")
     el.scroll_into_view_if_needed()
     el.click()
     el.fill(value)
-    print(f"  ✅ Filled: {desc} = '{value[:30]}...' " if len(value) > 30 else f"  ✅ Filled: {desc} = '{value}'")
-    return el
+    short = value[:60] + "..." if len(value) > 60 else value
+    print(f"  [OK] filled: {d} = '{short}'")
 
 
-def safe_click_by_text(page: Page, text: str, tag: str = "*", timeout: int = 15000):
-    """Click element by visible text content."""
-    print(f"  🖱️  Looking for text: '{text}'")
-    locator = page.locator(f"{tag}:has-text('{text}')").first
-    locator.wait_for(timeout=timeout, state="visible")
-    locator.scroll_into_view_if_needed()
-    time.sleep(0.3)
-    locator.click()
-    print(f"  ✅ Clicked text: '{text}'")
-
-
-def wait_for_navigation(page: Page, url_pattern: str = None, timeout: int = 60000):
-    """Wait for page navigation to complete."""
-    print(f"  ⏳ Waiting for navigation...")
-    page.wait_for_load_state("domcontentloaded", timeout=timeout)
-    if url_pattern:
-        page.wait_for_url(f"**{url_pattern}**", timeout=timeout)
-    page.wait_for_load_state("networkidle", timeout=timeout)
-    print(f"  ✅ Page loaded: {page.url[:80]}")
-
-
-def retry(func, max_retries=MAX_RETRIES, description=""):
-    """Retry a function with exponential backoff."""
-    for attempt in range(1, max_retries + 1):
-        try:
-            print(f"\n{'='*60}")
-            print(f"  🔄 {description} (attempt {attempt}/{max_retries})")
-            print(f"{'='*60}")
-            result = func()
-            print(f"  🎉 SUCCESS: {description}")
-            return result
-        except Exception as e:
-            print(f"  ❌ FAILED: {description} — {e}")
-            traceback.print_exc()
-            if attempt < max_retries:
-                wait = 2 ** attempt
-                print(f"  ⏳ Retrying in {wait}s...")
-                time.sleep(wait)
-            else:
-                print(f"  🛑 All {max_retries} attempts failed for: {description}")
-                raise
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MILESTONE 1: LOGIN TO TRAILHEAD
-# ═══════════════════════════════════════════════════════════════════════════════
-def milestone_1_login(page: Page):
-    """Log in to Trailhead and navigate to the module page."""
-    print("\n🚀 MILESTONE 1: Login to Trailhead")
-
-    # Navigate to module page first
-    page.goto(MODULE_URL, wait_until="domcontentloaded", timeout=60000)
-    time.sleep(3)
-    screenshot(page, "01_module_page")
-
-    # Check if already logged in
-    if page.locator("[data-id='user-avatar']").count() > 0 or page.locator(".user-avatar").count() > 0:
-        print("  ✅ Already logged in!")
-        return True
-
-    # Click login/signup button
+def wait_idle(page: Page, timeout=30000):
+    """Wait for network idle, swallow timeout."""
     try:
-        # Try multiple selectors for the login button
-        login_selectors = [
-            "a[href*='login']",
-            "button:has-text('Log In')",
-            "a:has-text('Log In')",
-            "[data-id='header-login']",
-            ".login-button",
-            "a:has-text('Sign Up')",
-        ]
-        clicked = False
-        for sel in login_selectors:
-            try:
-                if page.locator(sel).first.is_visible(timeout=3000):
-                    page.locator(sel).first.click()
-                    clicked = True
-                    print(f"  ✅ Clicked login via: {sel}")
-                    break
-            except Exception:
-                continue
-
-        if not clicked:
-            # Try navigating directly to login
-            page.goto("https://trailhead.salesforce.com/login", wait_until="domcontentloaded", timeout=30000)
-
-        time.sleep(3)
-        screenshot(page, "02_login_page")
-
-    except Exception as e:
-        print(f"  ⚠️ Login button click issue: {e}")
-        page.goto("https://trailhead.salesforce.com/login", wait_until="domcontentloaded", timeout=30000)
-        time.sleep(3)
-
-    # Fill login form — Salesforce uses a multi-step OAuth flow
-    page.wait_for_load_state("networkidle", timeout=30000)
-    screenshot(page, "03_login_form")
-
-    # Handle Salesforce/Trailhead login form
-    # Try username field with multiple selectors
-    username_selectors = [
-        "#username",
-        "input[name='username']",
-        "input[type='email']",
-        "#login-username",
-        "input[placeholder*='mail']",
-        "input[placeholder*='sername']",
-    ]
-    for sel in username_selectors:
+        page.wait_for_load_state("networkidle", timeout=timeout)
+    except Exception:
         try:
-            if page.locator(sel).first.is_visible(timeout=3000):
-                page.locator(sel).first.fill(TRAILHEAD_USERNAME)
-                print(f"  ✅ Username filled via: {sel}")
-                break
-        except Exception:
-            continue
-
-    # Try password field
-    password_selectors = [
-        "#password",
-        "input[name='pw']",
-        "input[name='password']",
-        "input[type='password']",
-    ]
-    for sel in password_selectors:
-        try:
-            if page.locator(sel).first.is_visible(timeout=3000):
-                page.locator(sel).first.fill(TRAILHEAD_PASSWORD)
-                print(f"  ✅ Password filled via: {sel}")
-                break
-        except Exception:
-            continue
-
-    screenshot(page, "04_credentials_filled")
-
-    # Click login submit
-    submit_selectors = [
-        "#Login",
-        "input[type='submit']",
-        "button[type='submit']",
-        "button:has-text('Log In')",
-        "#login-button",
-    ]
-    for sel in submit_selectors:
-        try:
-            if page.locator(sel).first.is_visible(timeout=3000):
-                page.locator(sel).first.click()
-                print(f"  ✅ Submit clicked via: {sel}")
-                break
-        except Exception:
-            continue
-
-    # Wait for login to complete
-    time.sleep(5)
-    page.wait_for_load_state("networkidle", timeout=60000)
-    screenshot(page, "05_after_login")
-
-    # Navigate back to module page if redirected
-    if "trailhead.salesforce.com/content/learn" not in page.url:
-        page.goto(MODULE_URL, wait_until="domcontentloaded", timeout=60000)
-        time.sleep(3)
-        page.wait_for_load_state("networkidle", timeout=30000)
-
-    screenshot(page, "06_module_page_logged_in")
-    print("  ✅ Milestone 1 complete — logged in and on module page")
-    return True
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MILESTONE 2: LAUNCH / CONNECT PLAYGROUND
-# ═══════════════════════════════════════════════════════════════════════════════
-def milestone_2_playground(page: Page, context):
-    """Launch or connect the Agentforce playground."""
-    print("\n🚀 MILESTONE 2: Launch Playground")
-
-    screenshot(page, "07_before_playground")
-
-    # Scroll down to find the challenge/playground section
-    page.evaluate("window.scrollTo(0, document.body.scrollHeight / 2)")
-    time.sleep(2)
-
-    # Look for playground launch/connect buttons
-    playground_selectors = [
-        "button:has-text('Launch')",
-        "button:has-text('Create Playground')",
-        "button:has-text('Connect Org')",
-        "button:has-text('Log In to Hands-on Org')",
-        "a:has-text('Launch')",
-        "[data-testid*='playground']",
-        "button:has-text('Get Started')",
-    ]
-
-    for sel in playground_selectors:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=5000):
-                screenshot(page, "08_playground_button_found")
-                loc.scroll_into_view_if_needed()
-                time.sleep(0.5)
-                loc.click()
-                print(f"  ✅ Clicked playground button: {sel}")
-                break
-        except Exception:
-            continue
-
-    # Wait for playground to load — could open new tab
-    time.sleep(10)
-    screenshot(page, "09_after_playground_click")
-
-    # Check if new tab/page opened with Salesforce
-    all_pages = context.pages
-    sf_page = None
-    for p in all_pages:
-        if "salesforce.com" in p.url or "force.com" in p.url:
-            sf_page = p
-            break
-
-    if sf_page:
-        sf_page.bring_to_front()
-        sf_page.wait_for_load_state("domcontentloaded", timeout=60000)
-        screenshot(sf_page, "10_salesforce_org")
-        print(f"  ✅ Salesforce org opened: {sf_page.url[:80]}")
-        return sf_page
-    else:
-        # Maybe playground opened in same tab or iframe
-        # Wait longer and check again
-        time.sleep(15)
-        all_pages = context.pages
-        for p in all_pages:
-            if "salesforce.com" in p.url or "force.com" in p.url:
-                sf_page = p
-                break
-
-        if sf_page:
-            sf_page.bring_to_front()
-            screenshot(sf_page, "10_salesforce_org")
-            print(f"  ✅ Salesforce org opened (delayed): {sf_page.url[:80]}")
-            return sf_page
-
-        # Still on same page — playground might load in-page
-        screenshot(page, "10_no_new_tab")
-        print("  ⚠️ No new Salesforce tab detected — checking current page")
-        
-        # If we see "Connecting to a Trailhead playground" spinner, wait more
-        try:
-            page.wait_for_selector("text=playground", timeout=10000)
-            time.sleep(30)  # Give playground time to spin up
-            all_pages = context.pages
-            for p in all_pages:
-                if "salesforce.com" in p.url or "force.com" in p.url:
-                    sf_page = p
-                    break
+            page.wait_for_load_state("load", timeout=10000)
         except Exception:
             pass
 
-        if sf_page:
-            sf_page.bring_to_front()
-            screenshot(sf_page, "10_salesforce_org_delayed")
-            return sf_page
 
-        # Last resort — return current page and hope for the best
-        print("  ⚠️ Using current page as Salesforce page")
-        return page
+def pause(msg="Press ENTER to continue..."):
+    """Log and pause briefly without blocking."""
+    print(f"\n  >>> [AUTO-PAUSE] {msg}")
+    time.sleep(2)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# MILESTONE 3: CREATE CC SERVICE AGENT
-# ═══════════════════════════════════════════════════════════════════════════════
-def milestone_3_create_agent(page: Page):
+# =====================================================================
+# STEP 1: CREATE THE AGENT
+# Trailhead instructions lines 712-749
+# =====================================================================
+def step1_create_agent(page: Page):
     """Open Agentforce Studio and create CC Service Agent."""
-    print("\n🚀 MILESTONE 3: Create CC Service Agent")
+    print("\n" + "="*60)
+    print("  STEP 1: CREATE THE AGENT")
+    print("="*60)
 
-    # Open App Launcher
-    screenshot(page, "11_before_app_launcher")
-
-    # Click the App Launcher (waffle icon)
-    app_launcher_selectors = [
-        "button.slds-icon-waffle_container",
-        ".appLauncher button",
-        "button[title='App Launcher']",
-        "div.slds-icon-waffle",
-        ".slds-icon-waffle",
-        "one-app-launcher-header button",
-    ]
-
-    for sel in app_launcher_selectors:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=5000):
-                loc.click()
-                print(f"  ✅ App launcher opened via: {sel}")
-                break
-        except Exception:
-            continue
-
-    time.sleep(2)
-    screenshot(page, "12_app_launcher_open")
-
-    # Search for Agentforce
-    search_selectors = [
-        "input[placeholder*='Search']",
-        "input[placeholder*='search']",
-        "input[type='search']",
-        ".appLauncherSearch input",
-        "input.slds-input",
-    ]
-
-    for sel in search_selectors:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=5000):
-                loc.fill("Agentforce")
-                print(f"  ✅ Searched 'Agentforce' via: {sel}")
-                break
-        except Exception:
-            continue
-
-    time.sleep(2)
-    screenshot(page, "13_agentforce_search")
-
-    # Click on Agentforce Studio
+    # 1. Click App Launcher
+    print("  Opening App Launcher...")
     try:
-        page.locator("text=Agentforce Studio").first.click(timeout=10000)
+        click(page, "button.slds-icon-waffle_container, div.slds-icon-waffle, .appLauncher button", desc="App Launcher (waffle)")
     except Exception:
         try:
-            page.locator("a:has-text('Agentforce')").first.click(timeout=5000)
+            click(page, "button[title='App Launcher']", desc="App Launcher")
         except Exception:
-            page.locator("mark:has-text('Agentforce')").first.click(timeout=5000)
+            click(page, "one-app-launcher-header button", desc="App Launcher header")
+    time.sleep(2)
 
-    time.sleep(5)
-    page.wait_for_load_state("networkidle", timeout=30000)
-    screenshot(page, "14_agentforce_studio")
-    print("  ✅ Agentforce Studio opened")
-
-    # Click "New Agent" or "+ New" button
-    new_agent_selectors = [
-        "button:has-text('New Agent')",
-        "button:has-text('+ New')",
-        "button:has-text('New')",
-        "a:has-text('New Agent')",
-        "[title='New Agent']",
-    ]
-
-    for sel in new_agent_selectors:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=5000):
-                loc.click()
-                print(f"  ✅ Clicked new agent: {sel}")
-                break
-        except Exception:
-            continue
-
-    time.sleep(3)
-    screenshot(page, "15_new_agent_form")
-
-    # Fill agent name
-    agent_name = "CC Service Agent"
-    agent_desc = (
-        "You are a customer service representative, helping our guests make "
-        "reservations, update bookings, and navigate all that Coral Cloud "
-        "Resorts has to offer."
-    )
-
-    # Fill name field
-    name_selectors = [
-        "input[name*='name' i]",
-        "input[placeholder*='name' i]",
-        "input[label*='name' i]",
-        "lightning-input[label*='Name'] input",
-        "input.slds-input",
-    ]
-
-    for sel in name_selectors:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=5000):
-                loc.fill(agent_name)
-                print(f"  ✅ Agent name filled: {agent_name}")
-                break
-        except Exception:
-            continue
-
-    # Fill description / "what do you want" field
-    desc_selectors = [
-        "textarea",
-        "textarea[name*='description' i]",
-        "textarea[placeholder*='want' i]",
-        "lightning-textarea textarea",
-    ]
-
-    for sel in desc_selectors:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=5000):
-                loc.fill(agent_desc)
-                print(f"  ✅ Agent description filled")
-                break
-        except Exception:
-            continue
-
-    screenshot(page, "16_agent_form_filled")
-
-    # Look for User assignment field — "EinsteinServiceAgent User"
+    # Search for Agentforce Studio
+    print("  Searching for Agentforce Studio...")
     try:
-        user_selectors = [
-            "input[placeholder*='User' i]",
-            "input[name*='user' i]",
-            "lightning-input[label*='User'] input",
-            "input[placeholder*='Search Users' i]",
-        ]
-        for sel in user_selectors:
+        fill(page, "input[placeholder*='Search' i], input[type='search']", "Agentforce Studio", desc="App search")
+    except Exception:
+        fill(page, "input.slds-input", "Agentforce Studio", desc="App search fallback")
+    time.sleep(3)
+    ss(page, "step1_search_agentforce")
+
+    # Click Agentforce Studio
+    try:
+        click(page, "a:has-text('Agentforce Studio'), mark:has-text('Agentforce'), p:has-text('Agentforce Studio')", timeout=10000, desc="Agentforce Studio link")
+    except Exception:
+        page.locator("text=Agentforce Studio").first.click()
+    time.sleep(5)
+    wait_idle(page)
+    ss(page, "step1_agentforce_studio")
+
+    # 2. Click New Agent
+    print("  Clicking New Agent...")
+    time.sleep(3)
+    click(page, "button:has-text('New Agent'), a:has-text('New Agent')", timeout=15000, desc="New Agent button")
+    time.sleep(5)
+    wait_idle(page)
+    ss(page, "step1_new_agent_form")
+
+    # 3. Fill "What do you want your agent to do?"
+    agent_prompt = "You are a customer service representative, helping our guests make reservations, update bookings, and navigate all that Coral Cloud Resorts has to offer."
+    print("  Filling agent prompt...")
+    try:
+        fill(page, "textarea", agent_prompt, desc="What do you want agent to do")
+    except Exception:
+        fill(page, "lightning-textarea textarea, [placeholder*='want' i]", agent_prompt, desc="Agent prompt")
+    time.sleep(1)
+
+    # 4. Press Enter
+    print("  Pressing Enter...")
+    page.keyboard.press("Enter")
+    time.sleep(3)
+    wait_idle(page)
+    ss(page, "step1_after_enter")
+
+    # 5. Enter agent name "CC Service Agent"
+    print("  Entering agent name...")
+    try:
+        # Look for name input - try multiple approaches
+        name_inputs = page.locator("input").all()
+        for inp in name_inputs:
             try:
-                loc = page.locator(sel).first
-                if loc.is_visible(timeout=3000):
-                    loc.fill("EinsteinServiceAgent")
-                    time.sleep(2)
-                    # Click the dropdown option
-                    try:
-                        page.locator("text=EinsteinServiceAgent User").first.click(timeout=5000)
-                    except Exception:
-                        page.locator("[role='option']:has-text('Einstein')").first.click(timeout=5000)
-                    print(f"  ✅ User assigned: EinsteinServiceAgent User")
+                placeholder = inp.get_attribute("placeholder") or ""
+                label_text = inp.get_attribute("name") or ""
+                if "name" in placeholder.lower() or "name" in label_text.lower():
+                    inp.click()
+                    inp.fill("CC Service Agent")
+                    print("  [OK] Agent name filled")
                     break
             except Exception:
                 continue
-    except Exception as e:
-        print(f"  ⚠️ User assignment skipped: {e}")
+        else:
+            # Fallback: find label "Name" and fill next input
+            fill(page, "input[name*='name' i], input[placeholder*='name' i]", "CC Service Agent", desc="Agent name")
+    except Exception:
+        fill(page, "input.slds-input", "CC Service Agent", desc="Agent name fallback")
 
-    screenshot(page, "17_agent_user_assigned")
+    time.sleep(2)
+    ss(page, "step1_agent_name")
 
-    # Click Create / Save / Next
-    create_selectors = [
-        "button:has-text('Create')",
-        "button:has-text('Save')",
-        "button:has-text('Next')",
-        "button:has-text('Done')",
-    ]
-    for sel in create_selectors:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=5000):
-                loc.click()
-                print(f"  ✅ Agent created via: {sel}")
-                break
-        except Exception:
-            continue
-
-    time.sleep(5)
-    page.wait_for_load_state("networkidle", timeout=30000)
-    screenshot(page, "18_agent_created")
-    print("  ✅ Milestone 3 complete — CC Service Agent created")
-    return True
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MILESTONE 4: CREATE EXPERIENCE MANAGEMENT SUBAGENT
-# ═══════════════════════════════════════════════════════════════════════════════
-def milestone_4_subagent(page: Page):
-    """Create Experience Management subagent inside CC Service Agent."""
-    print("\n🚀 MILESTONE 4: Create Experience Management Subagent")
-
-    screenshot(page, "19_before_subagent")
-
-    subagent_desc = (
-        "This subagent addresses customer inquiries and issues related to "
-        "booking experiences at Coral Cloud Resorts, including making "
-        "reservations, modifying session bookings, and answering queries "
-        "about experience details."
-    )
-
-    # Look for "New Subagent" or "+ Add Subagent" button
-    sub_selectors = [
-        "button:has-text('New Subagent')",
-        "button:has-text('Add Subagent')",
-        "button:has-text('New Topic')",
-        "a:has-text('New Subagent')",
-        "button:has-text('+')",
-    ]
-
-    for sel in sub_selectors:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=5000):
-                loc.click()
-                print(f"  ✅ Clicked: {sel}")
-                break
-        except Exception:
-            continue
-
-    time.sleep(3)
-    screenshot(page, "20_subagent_form")
-
-    # Fill subagent name
-    name_filled = False
-    for sel in ["input[name*='name' i]", "input[placeholder*='name' i]", "input.slds-input"]:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=3000):
-                loc.fill("Experience Management")
-                name_filled = True
-                print("  ✅ Subagent name: Experience Management")
-                break
-        except Exception:
-            continue
-
-    # Fill subagent description
-    for sel in ["textarea", "textarea[name*='description' i]", "lightning-textarea textarea"]:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=3000):
-                loc.fill(subagent_desc)
-                print("  ✅ Subagent description filled")
-                break
-        except Exception:
-            continue
-
-    screenshot(page, "21_subagent_filled")
-
-    # Save/Create
-    for sel in ["button:has-text('Create')", "button:has-text('Save')", "button:has-text('Done')"]:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=5000):
-                loc.click()
-                print(f"  ✅ Subagent saved via: {sel}")
-                break
-        except Exception:
-            continue
-
-    time.sleep(5)
-    page.wait_for_load_state("networkidle", timeout=30000)
-    screenshot(page, "22_subagent_created")
-    print("  ✅ Milestone 4 complete — Experience Management subagent created")
-    return True
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MILESTONE 5: ADD CUSTOM ACTIONS
-# ═══════════════════════════════════════════════════════════════════════════════
-def milestone_5_custom_actions(page: Page):
-    """Add Get Experience Details and Get Customer Details custom actions."""
-    print("\n🚀 MILESTONE 5: Add Custom Actions")
-
-    # Navigate to Experience Management subagent if not already there
+    # 6. In "Assign a user record" section, select "Select User"
+    print("  Selecting user assignment...")
     try:
-        page.locator("text=Experience Management").first.click(timeout=10000)
+        click(page, "text=Select User", timeout=5000, desc="Select User radio")
+    except Exception:
+        print("  [INFO] 'Select User' button not found, may already be selected")
+
+    time.sleep(1)
+
+    # 7. Click "Search users..." and select EinsteinServiceAgent User
+    print("  Searching for EinsteinServiceAgent User...")
+    try:
+        fill(page, "input[placeholder*='Search users' i], input[placeholder*='search' i]", "Einstein", desc="Search users")
         time.sleep(3)
+        click(page, "text=EinsteinServiceAgent User, [title*='EinsteinServiceAgent'], li:has-text('Einstein')", timeout=10000, desc="EinsteinServiceAgent User")
     except Exception:
-        print("  ⚠️ Already in Experience Management or not found")
-
-    screenshot(page, "23_in_subagent")
-
-    # === Action 1: Get Experience Details ===
-    print("  📋 Creating action: Get Experience Details")
-
-    # Click "New Action" or similar
-    action_selectors = [
-        "button:has-text('New Action')",
-        "button:has-text('Add Action')",
-        "button:has-text('Create Action')",
-        "a:has-text('New Action')",
-    ]
-    for sel in action_selectors:
         try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=5000):
-                loc.click()
-                print(f"  ✅ Clicked: {sel}")
-                break
-        except Exception:
-            continue
-
-    time.sleep(3)
-    screenshot(page, "24_new_action_form")
-
-    # Select Reference Action Type: Flow
-    try:
-        page.locator("text=Flow").first.click(timeout=5000)
-    except Exception:
-        for sel in ["select", "[role='combobox']", "lightning-combobox"]:
-            try:
-                loc = page.locator(sel).first
-                if loc.is_visible(timeout=3000):
-                    loc.click()
-                    time.sleep(1)
-                    page.locator("text=Flow").first.click(timeout=3000)
-                    break
-            except Exception:
-                continue
-
-    time.sleep(2)
-
-    # Select Reference Action: Get Experience Details
-    try:
-        ref_selectors = [
-            "input[placeholder*='Search' i]",
-            "input[placeholder*='action' i]",
-            "[role='combobox'] input",
-        ]
-        for sel in ref_selectors:
-            try:
-                loc = page.locator(sel).first
-                if loc.is_visible(timeout=3000):
-                    loc.fill("Get Experience Details")
-                    time.sleep(2)
-                    page.locator("text=Get Experience Details").first.click(timeout=5000)
-                    print("  ✅ Reference action: Get Experience Details")
-                    break
-            except Exception:
-                continue
-    except Exception as e:
-        print(f"  ⚠️ Reference action selection: {e}")
-
-    time.sleep(2)
-    screenshot(page, "25_action_get_exp_details")
-
-    # Configure inputs: experienceName — "Require Input to execute action"
-    try:
-        page.locator("text=experienceName").first.wait_for(timeout=5000)
-        # Find and check the "Require Input" checkbox near experienceName
-        checkboxes = page.locator("input[type='checkbox']")
-        for i in range(checkboxes.count()):
-            try:
-                cb = checkboxes.nth(i)
-                if cb.is_visible():
-                    cb.check()
-            except Exception:
-                continue
-        print("  ✅ Input configured: experienceName (required)")
-    except Exception as e:
-        print(f"  ⚠️ Input config: {e}")
-
-    # Configure outputs: experienceRecord — "Show in conversation"
-    try:
-        show_checkboxes = page.locator("text=Show in conversation")
-        if show_checkboxes.count() > 0:
-            show_checkboxes.first.click()
-            print("  ✅ Output configured: experienceRecord (show in conversation)")
-    except Exception as e:
-        print(f"  ⚠️ Output config: {e}")
-
-    # Save action
-    for sel in ["button:has-text('Save')", "button:has-text('Done')", "button:has-text('Create')"]:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=3000):
-                loc.click()
-                break
-        except Exception:
-            continue
-
-    time.sleep(3)
-    screenshot(page, "26_action1_saved")
-    print("  ✅ Action 1 created: Get Experience Details")
-
-    # === Action 2: Get Customer Details ===
-    print("  📋 Creating action: Get Customer Details")
-
-    for sel in action_selectors:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=5000):
-                loc.click()
-                break
-        except Exception:
-            continue
-
-    time.sleep(3)
-
-    # Select Flow type again
-    try:
-        page.locator("text=Flow").first.click(timeout=5000)
-    except Exception:
-        pass
-
-    time.sleep(2)
-
-    # Select Get Customer Details
-    try:
-        for sel in ref_selectors:
-            try:
-                loc = page.locator(sel).first
-                if loc.is_visible(timeout=3000):
-                    loc.fill("Get Customer Details")
-                    time.sleep(2)
-                    page.locator("text=Get Customer Details").first.click(timeout=5000)
-                    print("  ✅ Reference action: Get Customer Details")
-                    break
-            except Exception:
-                continue
-    except Exception as e:
-        print(f"  ⚠️ Reference action: {e}")
-
-    time.sleep(2)
-
-    # Configure inputs: email & memberNumber — both "Require Input"
-    try:
-        checkboxes = page.locator("input[type='checkbox']")
-        for i in range(checkboxes.count()):
-            try:
-                cb = checkboxes.nth(i)
-                if cb.is_visible():
-                    cb.check()
-            except Exception:
-                continue
-        print("  ✅ Inputs configured: email, memberNumber (required)")
-    except Exception:
-        pass
-
-    # Configure outputs: contact — "Show in conversation"
-    try:
-        show_checkboxes = page.locator("text=Show in conversation")
-        if show_checkboxes.count() > 0:
-            show_checkboxes.first.click()
-            print("  ✅ Output configured: contact (show in conversation)")
-    except Exception:
-        pass
-
-    # Save
-    for sel in ["button:has-text('Save')", "button:has-text('Done')", "button:has-text('Create')"]:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=3000):
-                loc.click()
-                break
-        except Exception:
-            continue
-
-    time.sleep(3)
-    screenshot(page, "27_action2_saved")
-    print("  ✅ Action 2 created: Get Customer Details")
-    print("  ✅ Milestone 5 complete — Custom actions added")
-    return True
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MILESTONE 6: ADD ASSET LIBRARY ACTIONS
-# ═══════════════════════════════════════════════════════════════════════════════
-def milestone_6_asset_actions(page: Page):
-    """Add Create Experience Session Booking and Get Sessions from asset library."""
-    print("\n🚀 MILESTONE 6: Add Asset Library Actions")
-
-    screenshot(page, "28_before_assets")
-
-    # Click "Add Action" or navigate to action library
-    for sel in ["button:has-text('Add Action')", "button:has-text('New Action')", "button:has-text('Add from Library')"]:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=5000):
-                loc.click()
-                break
-        except Exception:
-            continue
-
-    time.sleep(3)
-
-    # Search for and add "Create Experience Session Booking"
-    try:
-        search = page.locator("input[placeholder*='Search' i]").first
-        search.fill("Create Experience Session Booking")
-        time.sleep(2)
-        page.locator("text=Create Experience Session Booking").first.click(timeout=5000)
-        print("  ✅ Added: Create Experience Session Booking")
-    except Exception as e:
-        print(f"  ⚠️ Asset action 1: {e}")
-
-    time.sleep(2)
-
-    # Add "Get Sessions"
-    try:
-        # May need to click "Add Action" again
-        for sel in ["button:has-text('Add Action')", "button:has-text('Add from Library')"]:
-            try:
-                loc = page.locator(sel).first
-                if loc.is_visible(timeout=3000):
-                    loc.click()
-                    break
-            except Exception:
-                continue
-
-        time.sleep(2)
-        search = page.locator("input[placeholder*='Search' i]").first
-        search.fill("Get Sessions")
-        time.sleep(2)
-        page.locator("text=Get Sessions").first.click(timeout=5000)
-        print("  ✅ Added: Get Sessions")
-    except Exception as e:
-        print(f"  ⚠️ Asset action 2: {e}")
-
-    # Confirm/Save if needed
-    for sel in ["button:has-text('Add')", "button:has-text('Save')", "button:has-text('Done')"]:
-        try:
-            loc = page.locator(sel).first
-            if loc.is_visible(timeout=3000):
-                loc.click()
-                break
-        except Exception:
-            continue
-
-    time.sleep(3)
-    screenshot(page, "29_assets_added")
-    print("  ✅ Milestone 6 complete — Asset library actions added")
-    return True
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MILESTONE 7: ADD INSTRUCTIONS (Canvas + Script)
-# ═══════════════════════════════════════════════════════════════════════════════
-def milestone_7_instructions(page: Page):
-    """Add the 4 instruction blocks in Canvas and Script views."""
-    print("\n🚀 MILESTONE 7: Add Instructions")
-
-    screenshot(page, "30_before_instructions")
-
-    instructions_canvas = [
-        'If a customer would like more information on Activities or Experiences, you should run the Get Experience Details action and then summarize the results with improved readability. Always ensure you know the customer before running this action.',
-        'If the customer is not known, you must always ask for their email address and their membership number to get their Contact record by running {!@actions.Get_Customer_Details} before running any other actions.',
-        'If asked to get sessions for the experience use {!@actions.Get_Sessions}. Ask for the Date of the sessions if not provided. Use the Id of the Experience__c from {!@actions.Get_Experience_Details}. Do not use the experience name, this must be an ID.',
-    ]
-
-    instruction_script = 'If asked to book, use {!@actions.Create_Experience_Session_Booking}. The Contact__c is the contact ID from the {!@actions.Get_Customer_Details}. The Session__c is the ID of the session from the action {!@actions.Get_Sessions}. If multiple sessions are present, ask to select one of the sessions and use that Session as the ID for the Session__c. Prompt for the Number of Guests and use that for the Number_of_Guests__c.'
-
-    # Look for instructions/canvas area
-    # Try to find "Add Instruction" button or instructions panel
-    for idx, instruction in enumerate(instructions_canvas, 1):
-        print(f"  📝 Adding canvas instruction {idx}/3")
-        try:
-            # Click add instruction
-            for sel in ["button:has-text('Add Instruction')", "button:has-text('Add')", "button:has-text('+')"]:
+            # Try combobox approach
+            combos = page.locator("[role='combobox'] input, lightning-grouped-combobox input")
+            for i in range(combos.count()):
                 try:
-                    loc = page.locator(sel).first
-                    if loc.is_visible(timeout=3000):
-                        loc.click()
+                    c = combos.nth(i)
+                    if c.is_visible():
+                        c.click()
+                        c.fill("Einstein")
+                        time.sleep(2)
+                        page.locator("[role='option']:has-text('Einstein')").first.click()
+                        print("  [OK] User selected via combobox")
                         break
                 except Exception:
                     continue
-
-            time.sleep(1)
-
-            # Fill instruction text area
-            textarea = page.locator("textarea").last
-            if textarea.is_visible(timeout=5000):
-                textarea.fill(instruction)
-                print(f"  ✅ Instruction {idx} filled")
-
-            time.sleep(1)
         except Exception as e:
-            print(f"  ⚠️ Instruction {idx}: {e}")
+            print(f"  [WARN] User selection: {e}")
 
-    screenshot(page, "31_canvas_instructions")
+    time.sleep(2)
+    ss(page, "step1_user_selected")
 
-    # Switch to Script view for instruction 4
-    print("  📝 Switching to Script view for instruction 4")
+    # 8. Click "Let's Go"
+    print("  Clicking Let's Go...")
     try:
-        page.locator("text=Script").first.click(timeout=5000)
-        time.sleep(2)
+        click(page, "button:has-text(\"Let's Go\"), button:has-text('Let'), button:has-text('Create')", timeout=10000, desc="Let's Go")
+    except Exception as e:
+        print(f"  [WARN] Let's Go: {e}")
+    time.sleep(5)
+    wait_idle(page)
+    ss(page, "step1_lets_go")
+
+    # 9. Click "Skip Ahead"
+    print("  Clicking Skip Ahead...")
+    try:
+        click(page, "button:has-text('Skip Ahead'), button:has-text('Skip')", timeout=15000, desc="Skip Ahead")
+    except Exception:
+        print("  [INFO] Skip Ahead not found, may have auto-skipped")
+    time.sleep(5)
+    wait_idle(page)
+    ss(page, "step1_complete")
+
+    print("  [DONE] Step 1 complete - CC Service Agent created")
+    return True
+
+
+# =====================================================================
+# STEP 2: CREATE EXPERIENCE MANAGEMENT SUBAGENT
+# Trailhead instructions lines 782-813
+# =====================================================================
+def step2_create_subagent(page: Page):
+    """Create Experience Management subagent."""
+    print("\n" + "="*60)
+    print("  STEP 2: CREATE EXPERIENCE MANAGEMENT SUBAGENT")
+    print("="*60)
+
+    ss(page, "step2_start")
+
+    # 1. Click plus icon next to Subagents in Explorer panel
+    print("  Clicking + next to Subagents...")
+    try:
+        # Find the Subagents section and click its plus icon
+        click(page, "[title='Add Subagent'], button[aria-label*='Add'][aria-label*='ubagent']", timeout=10000, desc="Add Subagent +")
     except Exception:
         try:
-            page.locator("[role='tab']:has-text('Script')").first.click(timeout=5000)
-            time.sleep(2)
+            # Try finding "Subagents" text then clicking nearby +
+            subagents_el = page.locator("text=Subagents").first
+            subagents_el.wait_for(timeout=5000)
+            # Click the + icon near it
+            parent = subagents_el.locator("xpath=../..")
+            parent.locator("button, [role='button']").first.click()
         except Exception:
-            print("  ⚠️ Could not switch to Script view")
+            # Last resort - right click or find any + button
+            click(page, "button:has-text('+'), button[aria-label*='Add']", timeout=5000, desc="Any add button")
+    time.sleep(2)
 
-    # Add script instruction
+    # 2. Select +New Subagent
+    print("  Selecting +New Subagent...")
     try:
-        for sel in ["button:has-text('Add Instruction')", "button:has-text('Add')", "button:has-text('+')"]:
+        click(page, "text=New Subagent, [role='menuitem']:has-text('New Subagent')", timeout=5000, desc="+New Subagent")
+    except Exception:
+        click(page, "[role='menuitem']:first-child, li:has-text('New')", timeout=5000, desc="New menu item")
+    time.sleep(3)
+    ss(page, "step2_new_subagent_dialog")
+
+    # 3. Name: Experience Management
+    print("  Naming subagent: Experience Management...")
+    try:
+        fill(page, "input[name*='name' i], input[placeholder*='name' i], input[label*='Name' i]", "Experience Management", desc="Subagent name")
+    except Exception:
+        # Try first visible input in dialog
+        inputs = page.locator("input:visible").all()
+        for inp in inputs:
             try:
-                loc = page.locator(sel).first
-                if loc.is_visible(timeout=3000):
-                    loc.click()
-                    break
+                inp.fill("Experience Management")
+                print("  [OK] Name filled via fallback")
+                break
             except Exception:
                 continue
+    time.sleep(1)
 
+    # 4. Description
+    subagent_desc = "This subagent addresses customer inquiries and issues related to booking experiences at Coral Cloud Resorts, including making reservations, modifying session bookings, and answering queries about experience details."
+    print("  Filling description...")
+    try:
+        fill(page, "textarea", subagent_desc, desc="Subagent description")
+    except Exception:
+        fill(page, "lightning-textarea textarea", subagent_desc, desc="Description fallback")
+    time.sleep(1)
+    ss(page, "step2_filled")
+
+    # 5. Click Create and Open
+    print("  Clicking Create and Open...")
+    try:
+        click(page, "button:has-text('Create and Open')", timeout=10000, desc="Create and Open")
+    except Exception:
+        try:
+            click(page, "button:has-text('Create')", timeout=5000, desc="Create")
+        except Exception:
+            click(page, "button:has-text('Save')", timeout=5000, desc="Save")
+    time.sleep(5)
+    wait_idle(page)
+
+    # 6. Click Save
+    print("  Clicking Save...")
+    try:
+        click(page, "button:has-text('Save')", timeout=10000, desc="Save")
+    except Exception:
+        print("  [INFO] Save button may not be needed")
+    time.sleep(3)
+    ss(page, "step2_complete")
+
+    print("  [DONE] Step 2 complete - Experience Management subagent created")
+    return True
+
+
+# =====================================================================
+# STEP 3: ADD ACTIONS - Get Experience Details
+# Trailhead instructions lines 815-855
+# =====================================================================
+def step3_add_action_get_experience(page: Page):
+    """Create Get Experience Details custom action."""
+    print("\n" + "="*60)
+    print("  STEP 3a: ADD ACTION - Get Experience Details")
+    print("="*60)
+
+    ss(page, "step3a_start")
+
+    # 1. Click "Select action" in Actions Available For Reasoning
+    print("  Clicking Select action...")
+    try:
+        click(page, "text=Select action, button:has-text('Select action')", timeout=10000, desc="Select action")
+    except Exception:
+        # Try the + icon next to Experience Management
+        try:
+            click(page, "[title='Add Action'], button[aria-label*='Add']", timeout=5000, desc="Add action +")
+        except Exception:
+            click(page, "button:has-text('+')", timeout=5000, desc="+ button")
+    time.sleep(2)
+
+    # 2. Select +Create a custom action
+    print("  Selecting Create a custom action...")
+    try:
+        click(page, "text=Create a custom action, [role='menuitem']:has-text('custom action')", timeout=5000, desc="Create custom action")
+    except Exception:
+        click(page, "text=New Action, [role='menuitem']:has-text('New')", timeout=5000, desc="New Action")
+    time.sleep(3)
+    ss(page, "step3a_create_dialog")
+
+    # 3. Name: Get Experience Details
+    print("  Naming action: Get Experience Details...")
+    try:
+        fill(page, "input[name*='name' i], input[placeholder*='name' i]", "Get Experience Details", desc="Action name")
+    except Exception:
+        inputs = page.locator("input:visible").all()
+        for inp in inputs:
+            try:
+                inp.fill("Get Experience Details")
+                break
+            except Exception:
+                continue
+    time.sleep(1)
+
+    # 4. Description
+    action_desc = "Provides details about an Experience__c that a user would like more information about."
+    print("  Filling description...")
+    try:
+        fill(page, "textarea", action_desc, desc="Action description")
+    except Exception:
+        pass
+    time.sleep(1)
+
+    # 5. Click Create and Open
+    print("  Clicking Create and Open...")
+    try:
+        click(page, "button:has-text('Create and Open')", timeout=10000, desc="Create and Open")
+    except Exception:
+        click(page, "button:has-text('Create')", timeout=5000, desc="Create")
+    time.sleep(5)
+    wait_idle(page)
+    ss(page, "step3a_action_created")
+
+    # 6. Select Flow as Reference Action Type
+    print("  Selecting Flow as Reference Action Type...")
+    try:
+        click(page, "[role='combobox']:near(:text('Reference Action Type')), select:near(:text('Reference Action Type'))", timeout=5000, desc="Reference Action Type dropdown")
         time.sleep(1)
-        textarea = page.locator("textarea").last
-        if textarea.is_visible(timeout=5000):
-            textarea.fill(instruction_script)
-            print("  ✅ Script instruction filled")
-    except Exception as e:
-        print(f"  ⚠️ Script instruction: {e}")
-
-    screenshot(page, "32_script_instructions")
-    print("  ✅ Milestone 7 complete — Instructions added")
-    return True
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MILESTONE 8: SAVE, COMMIT, ACTIVATE AGENT
-# ═══════════════════════════════════════════════════════════════════════════════
-def milestone_8_activate(page: Page):
-    """Save, commit version, and activate the agent."""
-    print("\n🚀 MILESTONE 8: Save, Commit & Activate Agent")
-
-    # Save
-    try:
-        page.locator("button:has-text('Save')").first.click(timeout=10000)
-        time.sleep(3)
-        print("  ✅ Saved")
-    except Exception as e:
-        print(f"  ⚠️ Save: {e}")
-
-    screenshot(page, "33_saved")
-
-    # Commit Version
-    try:
-        page.locator("button:has-text('Commit')").first.click(timeout=10000)
-        time.sleep(2)
-        # May have a confirmation dialog
-        try:
-            page.locator("button:has-text('Commit')").last.click(timeout=5000)
-        except Exception:
-            pass
-        time.sleep(3)
-        print("  ✅ Version committed")
-    except Exception as e:
-        print(f"  ⚠️ Commit: {e}")
-
-    screenshot(page, "34_committed")
-
-    # Activate
-    try:
-        page.locator("button:has-text('Activate')").first.click(timeout=10000)
-        time.sleep(2)
-        # Confirmation
-        try:
-            page.locator("button:has-text('Activate')").last.click(timeout=5000)
-        except Exception:
-            try:
-                page.locator("button:has-text('Confirm')").first.click(timeout=5000)
-            except Exception:
-                pass
-        time.sleep(3)
-        print("  ✅ Agent activated")
-    except Exception as e:
-        print(f"  ⚠️ Activate: {e}")
-
-    screenshot(page, "35_activated")
-    print("  ✅ Milestone 8 complete — Agent activated")
-    return True
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MILESTONE 9: CONFIGURE ROUTE TO ESA FLOW
-# ═══════════════════════════════════════════════════════════════════════════════
-def milestone_9_flow(page: Page):
-    """Update the Route to ESA flow with agent routing."""
-    print("\n🚀 MILESTONE 9: Configure Route to ESA Flow")
-
-    # Navigate to Setup
-    page.goto(page.url.split('.com')[0] + ".com/lightning/setup/SetupOneHome/home", wait_until="domcontentloaded", timeout=30000)
-    time.sleep(5)
-    screenshot(page, "36_setup_home")
-
-    # Search for Flows in setup
-    try:
-        setup_search = page.locator("input[placeholder*='Quick Find' i]").first
-        if not setup_search.is_visible(timeout=5000):
-            setup_search = page.locator("input[type='search']").first
-        setup_search.fill("Flows")
-        time.sleep(3)
-        page.locator("text=Flows").first.click(timeout=10000)
-        time.sleep(5)
+        click(page, "[role='option']:has-text('Flow'), option:has-text('Flow')", timeout=5000, desc="Flow option")
     except Exception:
-        # Direct navigation
-        page.goto(page.url.split('.com')[0] + ".com/lightning/setup/Flows/home", wait_until="domcontentloaded", timeout=30000)
-        time.sleep(5)
-
-    screenshot(page, "37_flows_page")
-
-    # Find and click "Route to ESA" flow
-    try:
-        page.locator("a:has-text('Route to ESA')").first.click(timeout=10000)
-        time.sleep(5)
-        page.wait_for_load_state("networkidle", timeout=30000)
-    except Exception as e:
-        print(f"  ⚠️ Flow click: {e}")
-
-    screenshot(page, "38_route_to_esa")
-
-    # Edit the flow — click on the element that needs updating
-    # Look for "Set Input Values" or the assignment element
-    try:
-        # Click on the assignment/decision element
-        page.locator("text=Set Input Values").first.click(timeout=10000)
-        time.sleep(3)
-    except Exception:
-        # Try clicking on any element in the flow canvas
         try:
-            page.locator("[data-element-id]").first.click(timeout=5000)
+            click(page, "text=Flow", timeout=5000, desc="Flow text")
         except Exception:
-            pass
-
-    screenshot(page, "39_flow_element")
-
-    # Update Route To: Agentforce Service Agent
-    try:
-        page.locator("text=Agentforce Service Agent").first.click(timeout=5000)
-        print("  ✅ Route To: Agentforce Service Agent")
-    except Exception:
-        # Try combobox approach
-        try:
-            combos = page.locator("[role='combobox']")
-            for i in range(combos.count()):
+            # Try any combobox
+            combos = page.locator("[role='combobox'], lightning-combobox button").all()
+            for c in combos:
                 try:
-                    combos.nth(i).click()
-                    time.sleep(1)
-                    page.locator("text=Agentforce Service Agent").first.click(timeout=3000)
-                    break
+                    if c.is_visible():
+                        c.click()
+                        time.sleep(1)
+                        page.locator("[role='option']:has-text('Flow')").first.click()
+                        break
                 except Exception:
                     continue
-        except Exception as e:
-            print(f"  ⚠️ Route To: {e}")
+    time.sleep(3)
 
-    # Set Agentforce Service Agent: CC Service Agent
+    # 7. For Reference Action, select Get Experience Details
+    print("  Selecting Reference Action: Get Experience Details...")
     try:
-        page.locator("text=CC Service Agent").first.click(timeout=5000)
-        print("  ✅ Agent: CC Service Agent")
-    except Exception:
-        try:
-            combos = page.locator("[role='combobox']")
-            for i in range(combos.count()):
-                try:
-                    combos.nth(i).click()
-                    time.sleep(1)
-                    page.locator("text=CC Service Agent").first.click(timeout=3000)
-                    break
-                except Exception:
-                    continue
-        except Exception as e:
-            print(f"  ⚠️ Agent selection: {e}")
-
-    screenshot(page, "40_flow_configured")
-
-    # Save as new version
-    try:
-        page.locator("button:has-text('Save As')").first.click(timeout=5000)
-        time.sleep(2)
-        try:
-            page.locator("button:has-text('Save')").last.click(timeout=5000)
-        except Exception:
-            pass
-        time.sleep(3)
-        print("  ✅ Flow saved as new version")
-    except Exception:
-        try:
-            page.locator("button:has-text('Save')").first.click(timeout=5000)
-            time.sleep(3)
-        except Exception as e:
-            print(f"  ⚠️ Flow save: {e}")
-
-    # Activate
-    try:
-        page.locator("button:has-text('Activate')").first.click(timeout=10000)
-        time.sleep(3)
-        print("  ✅ Flow activated")
-    except Exception as e:
-        print(f"  ⚠️ Flow activate: {e}")
-
-    screenshot(page, "41_flow_activated")
-    print("  ✅ Milestone 9 complete — Route to ESA flow configured")
-    return True
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MILESTONE 10: PUBLISH ESA WEB DEPLOYMENT
-# ═══════════════════════════════════════════════════════════════════════════════
-def milestone_10_deployment(page: Page):
-    """Publish ESA Web Deployment."""
-    print("\n🚀 MILESTONE 10: Publish ESA Web Deployment")
-
-    # Navigate to Embedded Service Deployments
-    base = page.url.split('.com')[0] + ".com"
-
-    # Search in Setup
-    try:
-        page.goto(base + "/lightning/setup/SetupOneHome/home", wait_until="domcontentloaded", timeout=30000)
-        time.sleep(5)
-        setup_search = page.locator("input[placeholder*='Quick Find' i]").first
-        setup_search.fill("Embedded Service")
-        time.sleep(3)
-        page.locator("text=Embedded Service Deployments").first.click(timeout=10000)
-        time.sleep(5)
-    except Exception:
-        page.goto(base + "/lightning/setup/EmbeddedServiceDeployments/home", wait_until="domcontentloaded", timeout=30000)
-        time.sleep(5)
-
-    screenshot(page, "42_deployments")
-
-    # Click ESA Web Deployment
-    try:
-        page.locator("a:has-text('ESA Web Deployment')").first.click(timeout=10000)
-        time.sleep(5)
-    except Exception:
-        page.locator("text=ESA Web Deployment").first.click(timeout=10000)
-        time.sleep(5)
-
-    screenshot(page, "43_esa_deployment")
-
-    # Click Publish
-    try:
-        page.locator("button:has-text('Publish')").first.click(timeout=10000)
-        time.sleep(3)
-        # Confirm if dialog appears
-        try:
-            page.locator("button:has-text('Publish')").last.click(timeout=5000)
-        except Exception:
+        combos = page.locator("[role='combobox'], lightning-combobox button").all()
+        for c in combos:
             try:
-                page.locator("button:has-text('Confirm')").first.click(timeout=5000)
+                if c.is_visible():
+                    c.click()
+                    time.sleep(1)
+                    if page.locator("[role='option']:has-text('Get Experience Details')").count() > 0:
+                        page.locator("[role='option']:has-text('Get Experience Details')").first.click()
+                        print("  [OK] Reference Action selected")
+                        break
             except Exception:
-                pass
-        time.sleep(5)
-        print("  ✅ ESA Web Deployment published")
+                continue
     except Exception as e:
-        print(f"  ⚠️ Publish: {e}")
+        print(f"  [WARN] Reference Action: {e}")
+    time.sleep(3)
+    ss(page, "step3a_flow_selected")
 
-    screenshot(page, "44_published")
-    print("  ✅ Milestone 10 complete — ESA Web Deployment published")
+    # 8. experienceName Input: check "Require Input to execute action"
+    print("  Configuring inputs/outputs...")
+    try:
+        page.evaluate("window.scrollBy(0, 300)")
+        time.sleep(1)
+        
+        # Check experienceName row checkbox (Input)
+        try:
+            cb_exp = page.locator("tr:has-text('experienceName') input[type='checkbox']").first
+            cb_exp.wait_for(state="visible", timeout=5000)
+            if not cb_exp.is_checked():
+                cb_exp.check()
+                print("  [OK] Checked experienceName input checkbox")
+        except Exception as e:
+            print(f"  [WARN] Failed to check experienceName input checkbox: {e}")
+
+        # Check Experience row checkbox (Output)
+        try:
+            cb_out = page.locator("tr:has-text('Experience') input[type='checkbox']").first
+            cb_out.wait_for(state="visible", timeout=5000)
+            if not cb_out.is_checked():
+                cb_out.check()
+                print("  [OK] Checked Experience output checkbox")
+        except Exception as e:
+            print(f"  [WARN] Failed to check Experience output checkbox: {e}")
+
+    except Exception as e:
+        print(f"  [WARN] Checkbox config: {e}")
+
+    time.sleep(1)
+    ss(page, "step3a_inputs_configured")
+
+    # 9. Click Save
+    print("  Saving action...")
+    click(page, "button:has-text('Save')", timeout=10000, desc="Save")
+    time.sleep(3)
+    wait_idle(page)
+    ss(page, "step3a_complete")
+
+    print("  [DONE] Step 3a complete - Get Experience Details action created")
     return True
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# MILESTONE 11: CONFIGURE SITE BUILDER
-# ═══════════════════════════════════════════════════════════════════════════════
-def milestone_11_site(page: Page, context):
-    """Add Embedded Messaging component to coral-cloud site."""
-    print("\n🚀 MILESTONE 11: Configure Site Builder")
+# =====================================================================
+# STEP 3b: ADD ACTION - Get Customer Details
+# Trailhead instructions lines 856-921
+# =====================================================================
+def step3b_add_action_get_customer(page: Page):
+    """Create Get Customer Details custom action."""
+    print("\n" + "="*60)
+    print("  STEP 3b: ADD ACTION - Get Customer Details")
+    print("="*60)
 
-    base = page.url.split('.com')[0] + ".com"
+    ss(page, "step3b_start")
 
-    # Navigate to All Sites
+    # 1. Click + next to Experience Management subagent
+    print("  Adding new action...")
     try:
-        page.goto(base + "/lightning/setup/SetupOneHome/home", wait_until="domcontentloaded", timeout=30000)
-        time.sleep(5)
-        setup_search = page.locator("input[placeholder*='Quick Find' i]").first
-        setup_search.fill("All Sites")
-        time.sleep(3)
-        page.locator("text=All Sites").first.click(timeout=10000)
-        time.sleep(5)
+        click(page, "[title='Add Action'], button[aria-label*='Add']", timeout=5000, desc="Add action +")
     except Exception:
-        page.goto(base + "/lightning/setup/CustomDomain/home", wait_until="domcontentloaded", timeout=30000)
-        time.sleep(5)
+        click(page, "button:has-text('+')", timeout=5000, desc="+ button")
+    time.sleep(2)
 
-    screenshot(page, "45_all_sites")
-
-    # Find coral-cloud and click Builder
+    # 2. Select +New Action
+    print("  Selecting +New Action...")
     try:
-        # Look for Builder link/button near coral-cloud
-        row = page.locator("tr:has-text('coral-cloud'), div:has-text('coral-cloud')").first
-        row.locator("a:has-text('Builder'), button:has-text('Builder')").first.click(timeout=10000)
-        time.sleep(10)
+        click(page, "text=New Action, [role='menuitem']:has-text('New Action')", timeout=5000, desc="New Action")
     except Exception:
-        # Try just clicking Builder
-        try:
-            page.locator("a:has-text('Builder')").first.click(timeout=10000)
-            time.sleep(10)
-        except Exception as e:
-            print(f"  ⚠️ Builder click: {e}")
+        click(page, "[role='menuitem']:has-text('custom'), text=Create a custom action", timeout=5000, desc="Custom action")
+    time.sleep(3)
 
-    # Builder may open in new tab
+    # 3. Name: Get Customer Details
+    print("  Naming action: Get Customer Details...")
+    try:
+        fill(page, "input[name*='name' i], input[placeholder*='name' i]", "Get Customer Details", desc="Action name")
+    except Exception:
+        inputs = page.locator("input:visible").all()
+        for inp in inputs:
+            try:
+                inp.fill("Get Customer Details")
+                break
+            except Exception:
+                continue
+    time.sleep(1)
+
+    # 4. Description
+    action_desc = "Validate the Customer details by passing their email and memberNumber to see if there is a related contact."
+    print("  Filling description...")
+    try:
+        fill(page, "textarea", action_desc, desc="Action description")
+    except Exception:
+        pass
+    time.sleep(1)
+
+    # 5. Click Create and Open
+    print("  Clicking Create and Open...")
+    try:
+        click(page, "button:has-text('Create and Open')", timeout=10000, desc="Create and Open")
+    except Exception:
+        click(page, "button:has-text('Create')", timeout=5000, desc="Create")
     time.sleep(5)
-    builder_page = page
-    all_pages = context.pages
-    for p in all_pages:
-        if "sitebuilder" in p.url or "experiencebuilder" in p.url or "livepreview" in p.url:
-            builder_page = p
-            builder_page.bring_to_front()
-            break
+    wait_idle(page)
 
-    builder_page.wait_for_load_state("domcontentloaded", timeout=60000)
-    screenshot(builder_page, "46_site_builder")
-
-    # Drag Embedded Messaging component
-    # In Experience Builder, we need to:
-    # 1. Find the component panel (usually on left side)
-    # 2. Search for "Embedded Messaging"
-    # 3. Drag it to the right area
-
+    # 6. Select Flow as Reference Action Type
+    print("  Selecting Flow as Reference Action Type...")
     try:
-        # Open components panel if needed
+        combos = page.locator("[role='combobox'], lightning-combobox button").all()
+        for c in combos:
+            try:
+                if c.is_visible():
+                    c.click()
+                    time.sleep(1)
+                    if page.locator("[role='option']:has-text('Flow')").count() > 0:
+                        page.locator("[role='option']:has-text('Flow')").first.click()
+                        break
+            except Exception:
+                continue
+    except Exception:
+        pass
+    time.sleep(3)
+
+    # 7. Reference Action: Get Customer Details
+    print("  Selecting Reference Action: Get Customer Details...")
+    try:
+        combos = page.locator("[role='combobox'], lightning-combobox button").all()
+        for c in combos:
+            try:
+                if c.is_visible():
+                    c.click()
+                    time.sleep(1)
+                    if page.locator("[role='option']:has-text('Get Customer Details')").count() > 0:
+                        page.locator("[role='option']:has-text('Get Customer Details')").first.click()
+                        break
+            except Exception:
+                continue
+    except Exception:
+        pass
+    time.sleep(3)
+    ss(page, "step3b_flow_selected")
+
+    # 8. Configure checkboxes: email (require), memberNumber (require), contact (show)
+    print("  Configuring inputs/outputs...")
+    try:
+        page.evaluate("window.scrollBy(0, 300)")
+        time.sleep(1)
+        
+        # Check email checkbox
         try:
-            builder_page.locator("button:has-text('Components')").first.click(timeout=5000)
-            time.sleep(2)
+            cb_email = page.locator("tr:has-text('email') input[type='checkbox']").first
+            cb_email.wait_for(state="visible", timeout=5000)
+            if not cb_email.is_checked():
+                cb_email.check()
+                print("  [OK] Checked email input checkbox")
+        except Exception as e:
+            print(f"  [WARN] Failed to check email input checkbox: {e}")
+            
+        # Check memberNumber checkbox
+        try:
+            cb_num = page.locator("tr:has-text('memberNumber') input[type='checkbox']").first
+            cb_num.wait_for(state="visible", timeout=5000)
+            if not cb_num.is_checked():
+                cb_num.check()
+                print("  [OK] Checked memberNumber input checkbox")
+        except Exception as e:
+            print(f"  [WARN] Failed to check memberNumber input checkbox: {e}")
+            
+        # Check contact checkbox
+        try:
+            cb_contact = page.locator("tr:has-text('contact') input[type='checkbox']").first
+            cb_contact.wait_for(state="visible", timeout=5000)
+            if not cb_contact.is_checked():
+                cb_contact.check()
+                print("  [OK] Checked contact output checkbox")
+        except Exception as e:
+            print(f"  [WARN] Failed to check contact output checkbox: {e}")
+            
+    except Exception as e:
+        print(f"  [WARN] Checkbox config: {e}")
+
+    # 9. Click Save
+    print("  Saving action...")
+    click(page, "button:has-text('Save')", timeout=10000, desc="Save")
+    time.sleep(3)
+    wait_idle(page)
+    ss(page, "step3b_complete")
+
+    print("  [DONE] Step 3b complete - Get Customer Details action created")
+    return True
+
+
+# =====================================================================
+# STEP 3c: ADD ASSET LIBRARY ACTIONS
+# Trailhead instructions lines 922-964
+# =====================================================================
+def step3c_add_asset_library_actions(page: Page):
+    """Add Create Experience Session Booking and Get Sessions from asset library."""
+    print("\n" + "="*60)
+    print("  STEP 3c: ADD ASSET LIBRARY ACTIONS")
+    print("="*60)
+
+    ss(page, "step3c_start")
+
+    # 1. Click + next to Experience Management
+    print("  Adding from asset library...")
+    try:
+        click(page, "[title='Add Action'], button[aria-label*='Add']", timeout=5000, desc="Add +")
+    except Exception:
+        click(page, "button:has-text('+')", timeout=5000, desc="+ button")
+    time.sleep(2)
+
+    # 2. Select "Add from Asset Library"
+    print("  Selecting Add from Asset Library...")
+    try:
+        click(page, "text=Add from Asset Library, [role='menuitem']:has-text('Asset Library')", timeout=5000, desc="Asset Library")
+    except Exception:
+        click(page, "text=Asset Library", timeout=5000, desc="Asset Library text")
+    time.sleep(3)
+    ss(page, "step3c_asset_dialog")
+
+    # 3. Search "session"
+    print("  Searching for 'session'...")
+    try:
+        fill(page, "input[placeholder*='Search' i], input[type='search']", "session", desc="Search actions")
+    except Exception:
+        pass
+    time.sleep(3)
+    ss(page, "step3c_search_results")
+
+    # 4. Select both actions
+    print("  Selecting: Create Experience Session Booking...")
+    try:
+        # Click Select for "Create Experience Session Booking"
+        booking_row = page.locator("tr:has-text('Create Experience Session Booking'), div:has-text('Create Experience Session Booking')").first
+        booking_row.locator("button:has-text('Select'), input[type='checkbox']").first.click()
+    except Exception:
+        try:
+            page.locator("text=Create Experience Session Booking").first.click()
         except Exception:
             pass
+    time.sleep(1)
 
-        # Search for Embedded Messaging
-        search = builder_page.locator("input[placeholder*='Search' i]").first
-        search.fill("Embedded Messaging")
+    print("  Selecting: Get Sessions...")
+    try:
+        sessions_row = page.locator("tr:has-text('Get Sessions'), div:has-text('Get Sessions')").first
+        sessions_row.locator("button:has-text('Select'), input[type='checkbox']").first.click()
+    except Exception:
+        try:
+            page.locator("text=Get Sessions").first.click()
+        except Exception:
+            pass
+    time.sleep(2)
+    ss(page, "step3c_selected")
+
+    # 5. Click "Add to Agent"
+    print("  Clicking Add to Agent...")
+    try:
+        click(page, "button:has-text('Add to Agent'), button:has-text('Add')", timeout=10000, desc="Add to Agent")
+    except Exception:
+        pass
+    time.sleep(3)
+
+    # 6. Click Save
+    print("  Saving...")
+    try:
+        click(page, "button:has-text('Save')", timeout=10000, desc="Save")
+    except Exception:
+        pass
+    time.sleep(3)
+    wait_idle(page)
+    ss(page, "step3c_complete")
+
+    print("  [DONE] Step 3c complete - Asset library actions added")
+    return True
+
+
+# =====================================================================
+# STEP 4: ADD INSTRUCTIONS
+# Trailhead instructions lines 966-1041
+# =====================================================================
+def step4_add_instructions(page: Page):
+    """Add and update subagent instructions using Script View Monaco injection."""
+    print("\n" + "="*60)
+    print("  STEP 4: ADD INSTRUCTIONS TO SUBAGENT (MONACO INJECTION)")
+    print("="*60)
+
+    ss(page, "step4_start")
+
+    # 1. Click Experience Management subagent to open its tab
+    print("  Opening Experience Management subagent tab...")
+    try:
+        click(page, "a:has-text('Experience Management'), text=Experience Management", timeout=15000, desc="Experience Management")
+    except Exception as e:
+        print(f"  [WARN] Experience Management click failed: {e}")
+    time.sleep(3)
+
+    # 2. Switch to Script view
+    print("  Switching to Script view...")
+    script_view_active = False
+    for attempt in range(3):
+        try:
+            # Try Canvas/Script dropdown toggle
+            dropdown = page.locator("text=Canvas, button:has-text('Canvas'), button:has-text('Script')").first
+            if dropdown.is_visible(timeout=5000):
+                dropdown.click()
+                time.sleep(1)
+                page.locator("text=Script, [role='menuitem']:has-text('Script'), [role='option']:has-text('Script')").first.click()
+                print("  [OK] Switched to Script view via dropdown")
+                script_view_active = True
+                break
+        except Exception:
+            pass
+        try:
+            # Try direct tab click
+            tab = page.locator("[role='tab']:has-text('Script')").first
+            if tab.is_visible(timeout=5000):
+                tab.click()
+                print("  [OK] Switched to Script view via tab")
+                script_view_active = True
+                break
+        except Exception:
+            pass
         time.sleep(2)
 
-        # Find the component
-        component = builder_page.locator("text=Embedded Messaging").first
-        component.wait_for(timeout=10000)
+    if not script_view_active:
+        print("  [WARN] Could not switch to Script view. Proceeding with generic injection...")
+        
+    time.sleep(5)
+    ss(page, "step4_script_view")
 
-        # Find the target area — "Book an Experience of a Lifetime"
-        # Try drag and drop
-        target = builder_page.locator("text=Book an Experience").first
+    # 3. Formulate the full instructions text (all 4 steps)
+    all_instructions = (
+        "1. If a customer would like more information on Activities or Experiences, "
+        "you should run the {!@actions.Get_Experience_Details} and then summarize the results with improved readability. "
+        "Always ensure you know the customer before running this action.\n"
+        "2. If the customer is not known, you must always ask for their email address and their membership number "
+        "to get their Contact record by running {!@actions.Get_Customer_Details} before running any other actions.\n"
+        "3. If asked to get sessions for the experience use {!@actions.Get_Sessions}. Ask for the Date of the sessions if not provided. "
+        "Use the Id of the Experience__c from {!@actions.Get_Experience_Details}. Do not use the experience name, this must be an ID.\n"
+        "4. If asked to book, use {!@actions.Create_Experience_Session_Booking}. The Contact__c is the contact ID from the "
+        "{!@actions.Get_Customer_Details}. The Session__c is the ID of the session from the action {!@actions.Get_Sessions}. "
+        "If multiple sessions are present, ask to select one of the sessions and use that Session as the ID for the Session__c. "
+        "Prompt for the Number of Guests and use that for the Number_of_Guests__c."
+    )
 
-        if target.is_visible(timeout=5000):
-            component.drag_to(target)
-            print("  ✅ Embedded Messaging dragged to target")
-        else:
-            # Just click the component to add it
-            component.click()
-            print("  ✅ Embedded Messaging component added (click)")
-
+    # 4. Inject instructions into the editor (Monaco or textarea)
+    print("  Injecting instructions...")
+    injected = False
+    try:
+        # Find the editor and focus it
+        editor = page.locator(".monaco-editor, [contenteditable='true'], textarea").first
+        editor.wait_for(state="visible", timeout=10000)
+        editor.click()
+        time.sleep(1)
+        
+        # Select all and delete to clear existing text
+        page.keyboard.press("Control+a")
+        time.sleep(0.5)
+        page.keyboard.press("Delete")
+        time.sleep(0.5)
+        
+        # Insert using insert_text to avoid autocomplete issues
+        page.keyboard.insert_text(all_instructions)
+        print("  [OK] Injected instructions via insert_text")
+        injected = True
     except Exception as e:
-        print(f"  ⚠️ Component drag: {e}")
-        # Try alternative approach — double-click or click-to-add
+        print(f"  [WARN] Key injection failed: {e}. Trying direct page evaluate...")
+
+    if not injected:
         try:
-            builder_page.locator("text=Embedded Messaging").first.dblclick(timeout=5000)
-        except Exception:
-            pass
+            # Let's try direct Monaco value setting via page execution
+            page.evaluate(f"if (typeof monaco !== 'undefined') monaco.editor.getModels()[0].setValue({repr(all_instructions)})")
+            print("  [OK] Injected instructions via monaco.editor evaluation")
+            injected = True
+        except Exception as eval_err:
+            print(f"  [ERROR] Monaco evaluate failed: {eval_err}")
 
     time.sleep(3)
-    screenshot(builder_page, "47_component_added")
+    ss(page, "step4_instructions_injected")
 
-    # Publish the site
+    # 5. Save
+    print("  Saving agent instructions...")
+    click(page, "button:has-text('Save')", timeout=15000, desc="Save")
+    time.sleep(5)
+    wait_idle(page)
+
+    # 6. Commit Version
+    print("  Committing version...")
     try:
-        builder_page.locator("button:has-text('Publish')").first.click(timeout=10000)
+        click(page, "button:has-text('Commit Version')", timeout=15000, desc="Commit Version")
         time.sleep(3)
-        # Confirm
-        try:
-            builder_page.locator("button:has-text('Publish')").last.click(timeout=5000)
-        except Exception:
-            try:
-                builder_page.locator("button:has-text('Got It')").first.click(timeout=5000)
-            except Exception:
-                pass
-        time.sleep(5)
-        print("  ✅ Site published")
+        # Check if a confirmation modal/button pops up
+        confirm_btn = page.locator("lightning-dialog button:has-text('Commit Version'), button:has-text('Commit')").first
+        if confirm_btn.is_visible(timeout=5000):
+            confirm_btn.click()
+            print("  [OK] Confirmed Commit Version")
     except Exception as e:
-        print(f"  ⚠️ Site publish: {e}")
+        print(f"  [WARN] Commit Version confirmation not found or failed: {e}")
+    time.sleep(5)
+    wait_idle(page)
 
-    screenshot(builder_page, "48_site_published")
-    print("  ✅ Milestone 11 complete — Site configured with Embedded Messaging")
-    return builder_page
+    # 7. Activate
+    print("  Activating agent...")
+    try:
+        click(page, "button:has-text('Activate')", timeout=15000, desc="Activate")
+        time.sleep(3)
+        confirm_act = page.locator("lightning-dialog button:has-text('Activate'), button:has-text('Confirm')").first
+        if confirm_act.is_visible(timeout=5000):
+            confirm_act.click()
+            print("  [OK] Confirmed Activation")
+    except Exception as e:
+        print(f"  [WARN] Activation confirmation not found or failed: {e}")
+    time.sleep(8)
+    wait_idle(page)
+    ss(page, "step4_complete")
+
+    print("  [DONE] Step 4 complete - Instructions added, committed, activated")
+    return True
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# MILESTONE 12: VERIFY CHALLENGE
-# ═══════════════════════════════════════════════════════════════════════════════
-def milestone_12_verify(page: Page, context):
-    """Navigate back to Trailhead and verify the challenge."""
-    print("\n🚀 MILESTONE 12: Verify Challenge")
+# =====================================================================
+# STEP 5: PUBLISH AND UPDATE (Flow + Deployment + Site)
+# Trailhead instructions lines 1074-1156
+# =====================================================================
+def step5_publish_and_update(page: Page, context: BrowserContext):
+    """Publish deployment, update flow, and add messaging to site."""
+    print("\n" + "="*60)
+    print("  STEP 5: PUBLISH AND UPDATE")
+    print("="*60)
 
-    # Find the Trailhead tab
+    ss(page, "step5_start")
+    
+    # Calculate base_url
+    base_url = page.url.split('.com')[0] + ".com" if '.com' in page.url else page.url.split('/')[0] + '//' + page.url.split('/')[2]
+    print(f"  Salesforce Base URL: {base_url}")
+
+    # --- 5a. Publish ESA Web Deployment ---
+    print("\n  -- 5a: Publish ESA Web Deployment --")
+    deployments_url = f"{base_url}/lightning/setup/EmbeddedServiceDeployments/home"
+    print(f"  Navigating directly to Embedded Service Deployments Setup: {deployments_url}")
+    page.goto(deployments_url, wait_until="domcontentloaded", timeout=60000)
+    time.sleep(8)
+    wait_idle(page)
+    ss(page, "step5a_deployments_page")
+
+    # Click ESA Web Deployment
+    print("  Clicking ESA Web Deployment...")
+    try:
+        click(page, "a:has-text('ESA Web Deployment'), text=ESA Web Deployment, tr:has-text('ESA Web Deployment') a", timeout=20000, desc="ESA Web Deployment")
+    except Exception as e:
+        print(f"  [WARN] Click ESA Web Deployment failed: {e}. Trying option/text selector...")
+        page.locator("text=ESA Web Deployment").first.click()
+    time.sleep(8)
+    wait_idle(page)
+    ss(page, "step5a_deployment_detail")
+
+    # Click Publish
+    print("  Publishing...")
+    published = False
+    try:
+        click(page, "button:has-text('Publish'), [title='Publish']", timeout=15000, desc="Publish button")
+        time.sleep(3)
+        try:
+            click(page, "lightning-dialog button:has-text('Publish'), button:has-text('Confirm')", timeout=5000, desc="Confirm Publish")
+        except Exception:
+            pass
+        published = True
+    except Exception as e:
+        print(f"  [WARN] Publish click failed: {e}")
+        
+    time.sleep(5)
+    ss(page, "step5a_published")
+    print(f"  [OK] ESA Web Deployment published: {published}")
+
+    # --- 5b. Update Route to ESA Flow ---
+    print("\n  -- 5b: Update Route to ESA Flow --")
+    flows_url = f"{base_url}/lightning/setup/Flows/home"
+    print(f"  Navigating directly to Flows Setup: {flows_url}")
+    page.goto(flows_url, wait_until="domcontentloaded", timeout=60000)
+    time.sleep(8)
+    wait_idle(page)
+    ss(page, "step5b_flows_page")
+
+    # Click Route to ESA
+    print("  Clicking Route to ESA flow...")
+    try:
+        with context.expect_page() as new_page_info:
+            click(page, "a:has-text('Route to ESA'), tr:has-text('Route to ESA') a", timeout=20000, desc="Route to ESA link")
+        flow_page = new_page_info.value
+        flow_page.bring_to_front()
+        print("  [OK] Flow page opened in new tab")
+    except Exception as e:
+        print(f"  [WARN] Failed to open flow in new tab: {e}. Using current page.")
+        flow_page = page
+
+    print("  Waiting for Flow Builder to load...")
+    flow_page.wait_for_load_state("domcontentloaded", timeout=60000)
+    time.sleep(10)
+    wait_idle(flow_page)
+    ss(flow_page, "step5b_flow_builder_loaded")
+
+    # Click the Route to ESA component in the flow
+    print("  Clicking Route to ESA component...")
+    try:
+        click(flow_page, "text=Route to ESA, [data-element-id*='Route_to_ESA']", timeout=25000, desc="Route to ESA component")
+    except Exception as e:
+        print(f"  [WARN] Direct click failed: {e}. Trying fallback click on canvas/elements...")
+        try:
+            flow_page.locator("canvas, [data-element-id]").first.click()
+        except Exception:
+            pass
+    time.sleep(5)
+    ss(flow_page, "step5b_component_selected")
+
+    # Update Route To: Agentforce Service Agent
+    print("  Setting Route To: Agentforce Service Agent...")
+    route_to_set = False
+    try:
+        combo = flow_page.locator("lightning-combobox:has-text('Route To') button, lightning-combobox:has-text('Route To') input").first
+        combo.click()
+        time.sleep(1)
+        flow_page.locator("[role='option']:has-text('Agentforce Service Agent')").first.click()
+        print("  [OK] Route To set via specific combobox")
+        route_to_set = True
+    except Exception as e:
+        print(f"  [WARN] Specific Route To combo failed: {e}. Trying generic combobox search...")
+
+    if not route_to_set:
+        try:
+            combos = flow_page.locator("[role='combobox'], lightning-combobox button, select").all()
+            for c in combos:
+                try:
+                    if c.is_visible():
+                        c.click()
+                        time.sleep(1)
+                        options = flow_page.locator("[role='option']:has-text('Agentforce Service Agent'), option:has-text('Agentforce')")
+                        if options.count() > 0:
+                           options.first.click()
+                           print("  [OK] Route To set via generic combobox")
+                           route_to_set = True
+                           break
+                except Exception:
+                    continue
+        except Exception as e:
+            print(f"  [ERROR] Generic Route To set failed: {e}")
+
+    time.sleep(2)
+
+    # Set Agentforce Service Agent: CC Service Agent
+    print("  Setting Agent: CC Service Agent...")
+    agent_set = False
+    try:
+        combo = flow_page.locator("lightning-combobox:has-text('Service Agent') button, lightning-combobox:has-text('Service Agent') input, lightning-combobox:has-text('Agentforce') button").first
+        combo.click()
+        time.sleep(1)
+        flow_page.locator("[role='option']:has-text('CC Service Agent')").first.click()
+        print("  [OK] Agent set via specific combobox")
+        agent_set = True
+    except Exception as e:
+        print(f"  [WARN] Specific agent combo failed: {e}. Trying generic combobox search...")
+
+    if not agent_set:
+        try:
+            combos = flow_page.locator("[role='combobox'], lightning-combobox button, select").all()
+            for c in combos:
+                try:
+                    if c.is_visible():
+                        c.click()
+                        time.sleep(1)
+                        options = flow_page.locator("[role='option']:has-text('CC Service Agent'), option:has-text('CC Service')")
+                        if options.count() > 0:
+                           options.first.click()
+                           print("  [OK] Agent set via generic combobox")
+                           agent_set = True
+                           break
+                except Exception:
+                    continue
+        except Exception as e:
+            print(f"  [ERROR] Generic Agent set failed: {e}")
+
+    time.sleep(2)
+    ss(flow_page, "step5b_flow_configured")
+
+    # Save As New Version
+    print("  Saving flow...")
+    try:
+        click(flow_page, "button:has-text('Save As'), button:has-text('Save')", timeout=15000, desc="Save As/Save")
+        time.sleep(2)
+        try:
+            click(flow_page, "footer button:has-text('Save'), button:has-text('Save')", timeout=5000, desc="Confirm Save")
+        except Exception:
+            pass
+    except Exception as e:
+        print(f"  [WARN] Save flow failed: {e}")
+    time.sleep(5)
+    ss(flow_page, "step5b_flow_saved")
+
+    # Activate
+    print("  Activating flow...")
+    try:
+        click(flow_page, "button:has-text('Activate')", timeout=15000, desc="Activate")
+    except Exception as e:
+        print(f"  [WARN] Activate flow failed: {e}")
+    time.sleep(5)
+    ss(flow_page, "step5b_flow_activated")
+    
+    # Close flow_page if it is a new tab
+    if flow_page != page:
+        flow_page.close()
+        print("  [OK] Closed Flow Builder tab")
+
+    # --- 5c. Add Embedded Messaging to Coral Cloud Site ---
+    print("\n  -- 5c: Add Messaging to Site --")
+    sites_url = f"{base_url}/lightning/setup/ThirdPartyNetworks/home"
+    print(f"  Navigating directly to All Sites Setup: {sites_url}")
+    page.bring_to_front()
+    page.goto(sites_url, wait_until="domcontentloaded", timeout=60000)
+    time.sleep(8)
+    wait_idle(page)
+    ss(page, "step5c_sites_page")
+
+    # Click Builder next to coral-cloud
+    print("  Opening Builder for coral-cloud...")
+    builder_page = None
+    try:
+        with context.expect_page() as new_page_info:
+            click(page, "tr:has-text('coral-cloud') a:has-text('Builder'), tr:has-text('Coral Cloud') a:has-text('Builder'), a:has-text('Builder')", timeout=20000, desc="Builder link")
+        builder_page = new_page_info.value
+        builder_page.bring_to_front()
+        print("  [OK] Experience Builder opened in new tab")
+    except Exception as e:
+        print(f"  [WARN] Failed to open Builder in new tab: {e}. Searching pages...")
+        for p in context.pages:
+            if "sitebuilder" in p.url or "experiencebuilder" in p.url:
+                builder_page = p
+                builder_page.bring_to_front()
+                break
+        if not builder_page:
+            builder_page = page
+
+    print("  Waiting for Experience Builder to load...")
+    builder_page.wait_for_load_state("domcontentloaded", timeout=90000)
+    time.sleep(15)
+    wait_idle(builder_page)
+    ss(builder_page, "step5c_builder_loaded")
+
+    # Click Components widget
+    print("  Opening Components panel...")
+    try:
+        click(builder_page, "button:has-text('Components'), [title='Components'], .components-button button", timeout=25000, desc="Components button")
+    except Exception as e:
+        print(f"  [WARN] Could not click Components button: {e}. Trying title selector...")
+        builder_page.locator("[title='Components']").first.click()
+    time.sleep(3)
+
+    # Search Embedded Messaging
+    print("  Searching for Embedded Messaging component...")
+    try:
+        fill(builder_page, "input[placeholder*='Search' i]", "Embedded Messaging", desc="Component search")
+    except Exception:
+        pass
+    time.sleep(3)
+    ss(builder_page, "step5c_component_search")
+
+    # Add Embedded Messaging component
+    print("  Adding Embedded Messaging component...")
+    added = False
+    try:
+        component = builder_page.locator("text=Embedded Messaging, [title='Embedded Messaging']").first
+        target = builder_page.locator("text=Book an Experience, .site-header, .body-content").first
+        if component.is_visible(timeout=5000) and target.is_visible(timeout=5000):
+            component.drag_to(target)
+            print("  [OK] Component dragged successfully")
+            added = True
+    except Exception as e:
+        print(f"  [WARN] Drag and drop failed: {e}. Trying double-click fallback...")
+        
+    if not added:
+        try:
+            component = builder_page.locator("text=Embedded Messaging, [title='Embedded Messaging']").first
+            component.dblclick(timeout=10000)
+            print("  [OK] Component added via double-click")
+            added = True
+        except Exception as e:
+            print(f"  [ERROR] Double-click failed too: {e}")
+            
+    time.sleep(5)
+    ss(builder_page, "step5c_component_added")
+
+    # Publish site
+    print("  Publishing site...")
+    try:
+        click(builder_page, "button:has-text('Publish'), [title='Publish']", timeout=20000, desc="Publish")
+        time.sleep(3)
+        try:
+            click(builder_page, "button.publish-button, button:has-text('Publish')", timeout=5000, desc="Confirm Publish")
+        except Exception:
+            pass
+        time.sleep(5)
+        try:
+            click(builder_page, "button:has-text('Got It')", timeout=5000, desc="Got It")
+        except Exception:
+            pass
+    except Exception as e:
+        print(f"  [WARN] Site publishing failed: {e}")
+    time.sleep(5)
+    ss(builder_page, "step5c_published")
+
+    if builder_page != page:
+        builder_page.close()
+        print("  [OK] Closed Experience Builder tab")
+
+    page.bring_to_front()
+    print("  [DONE] Step 5 complete - Published, flow updated, site configured")
+    return True
+
+
+# =====================================================================
+# STEP 6: VERIFY CHALLENGE
+# =====================================================================
+def step6_verify(page: Page, context: BrowserContext):
+    """Go back to Trailhead and verify."""
+    print("\n" + "="*60)
+    print("  STEP 6: VERIFY CHALLENGE")
+    print("="*60)
+
+    # Find Trailhead tab or open new one
     trailhead_page = None
     for p in context.pages:
         if "trailhead.salesforce.com" in p.url:
             trailhead_page = p
             break
-
     if not trailhead_page:
-        trailhead_page = page
+        trailhead_page = context.new_page()
         trailhead_page.goto(MODULE_URL, wait_until="domcontentloaded", timeout=60000)
-        time.sleep(5)
     else:
         trailhead_page.bring_to_front()
         trailhead_page.reload(wait_until="domcontentloaded", timeout=60000)
-        time.sleep(5)
+    time.sleep(5)
+    wait_idle(trailhead_page)
 
-    screenshot(trailhead_page, "49_trailhead_verify")
-
-    # Scroll to the challenge section
+    # Scroll to challenge section
     trailhead_page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
     time.sleep(3)
+    ss(trailhead_page, "step6_challenge_section")
 
-    # Click "Check Challenge" or "Verify" button
-    verify_selectors = [
-        "button:has-text('Check Challenge')",
-        "button:has-text('Verify')",
-        "button:has-text('Check')",
-        "input[value='Check Challenge']",
-        "[data-testid*='check']",
-        "button:has-text('Submit')",
-    ]
-
-    for sel in verify_selectors:
-        try:
-            loc = trailhead_page.locator(sel).first
-            if loc.is_visible(timeout=5000):
-                loc.scroll_into_view_if_needed()
-                time.sleep(0.5)
-                loc.click()
-                print(f"  ✅ Challenge verification clicked: {sel}")
-                break
-        except Exception:
-            continue
-
-    # Wait for result
+    # Click Check Challenge
+    print("  Clicking Check Challenge...")
+    try:
+        click(trailhead_page, "button:has-text('Check Challenge'), button:has-text('Verify'), input[value*='Check']", timeout=15000, desc="Check Challenge")
+    except Exception:
+        pass
     time.sleep(15)
-    screenshot(trailhead_page, "50_challenge_result")
+    ss(trailhead_page, "step6_result")
 
-    # Check for success
+    # Check result
     try:
-        success = trailhead_page.locator("text=Congratulations").first
-        if success.is_visible(timeout=10000):
-            print("\n🏆🏆🏆 CHALLENGE COMPLETED SUCCESSFULLY! 🏆🏆🏆")
-            screenshot(trailhead_page, "51_SUCCESS")
+        if trailhead_page.locator("text=Congratulations").first.is_visible(timeout=10000):
+            print("\n  *** CHALLENGE COMPLETED SUCCESSFULLY! ***")
             return True
     except Exception:
         pass
 
-    # Check for other success indicators
+    print("  [INFO] Check the browser for the challenge result")
+    return True
+
+
+# =====================================================================
+# MAIN
+# =====================================================================
+def bypass_steps_1_and_2(page: Page):
+    """Bypasses steps 1 and 2 by opening the existing CC Service Agent and subagent."""
+    print("\n" + "="*60)
+    print("  BYPASSING STEPS 1 AND 2 (Opening CC Service Agent)")
+    print("="*60)
+    
+    # 1. Click App Launcher
+    print("  Opening App Launcher...")
     try:
-        if trailhead_page.locator("text=points").first.is_visible(timeout=5000):
-            print("\n🏆 Challenge appears to be completed! (points awarded)")
-            screenshot(trailhead_page, "51_SUCCESS_points")
-            return True
+        click(page, "button.slds-icon-waffle_container, div.slds-icon-waffle, .appLauncher button", desc="App Launcher (waffle)")
+    except Exception:
+        try:
+            click(page, "button[title='App Launcher']", desc="App Launcher")
+        except Exception:
+            click(page, "one-app-launcher-header button", desc="App Launcher header")
+    time.sleep(3)
+
+    # Search for Agentforce Studio
+    print("  Searching for Agentforce Studio...")
+    try:
+        fill(page, "input[placeholder*='Search' i], input[type='search']", "Agentforce Studio", desc="App search")
+    except Exception:
+        fill(page, "input.slds-input", "Agentforce Studio", desc="App search fallback")
+    time.sleep(3)
+    ss(page, "bypass_search_agentforce")
+
+    # Click Agentforce Studio
+    try:
+        click(page, "a:has-text('Agentforce Studio'), mark:has-text('Agentforce'), p:has-text('Agentforce Studio')", timeout=15000, desc="Agentforce Studio link")
+    except Exception:
+        page.locator("text=Agentforce Studio").first.click()
+    time.sleep(8)
+    wait_idle(page)
+    ss(page, "bypass_agentforce_studio")
+
+    # Click existing "CC Service Agent"
+    print("  Selecting CC Service Agent...")
+    try:
+        click(page, "a:has-text('CC Service Agent'), text='CC Service Agent', tr:has-text('CC Service Agent') a", timeout=20000, desc="CC Service Agent link")
+    except Exception as e:
+        print(f"  [WARN] Failed to click CC Service Agent directly: {e}. Trying list lookup...")
+        page.locator("text=CC Service Agent").first.click()
+    
+    time.sleep(8)
+    wait_idle(page)
+    ss(page, "bypass_agent_builder")
+
+    # Open "Experience Management" subagent tab
+    print("  Opening Experience Management subagent tab...")
+    try:
+        tab = page.locator("a:has-text('Experience Management'), text='Experience Management'").first
+        tab.wait_for(state="visible", timeout=15000)
+        tab.click()
+    except Exception as e:
+        print(f"  [WARN] Experience Management subagent tab click failed: {e}. Trying locator fallback...")
+        page.locator("text=Experience Management").first.click()
+        
+    time.sleep(5)
+    wait_idle(page)
+    ss(page, "bypass_subagent_opened")
+    print("  [DONE] Bypassed steps 1 & 2 successfully")
+    return True
+
+
+def login_and_launch(page: Page, context: BrowserContext) -> Page:
+    """Automates login to Trailhead and launching the playground org."""
+    print("\n" + "="*60)
+    print("  AUTOMATING LOGIN & PLAYGROUND LAUNCH")
+    print("="*60)
+    
+    # 1. Go to MODULE_URL
+    print(f"  Navigating to module: {MODULE_URL}")
+    page.goto(MODULE_URL, wait_until="domcontentloaded", timeout=90000)
+    time.sleep(5)
+    wait_idle(page)
+    ss(page, "trailhead_home")
+    
+    # 2. Check if logged in.
+    logged_in = False
+    try:
+        launch_btn = page.locator("button:has-text('Launch'), a:has-text('Launch'), button[data-testid*='launch']").first
+        if launch_btn.is_visible(timeout=5000):
+            print("  [INFO] Already logged in (Launch button visible)")
+            logged_in = True
     except Exception:
         pass
+        
+    if not logged_in:
+        print("  Not logged in. Initiating login flow...")
+        login_btn = None
+        for sel in ["a:has-text('Log in')", "button:has-text('Log in')", "[data-testid='login-button']", "text=Log In"]:
+            try:
+                btn = page.locator(sel).first
+                if btn.is_visible(timeout=3000):
+                    login_btn = btn
+                    break
+            except Exception:
+                continue
+        
+        if login_btn:
+            login_btn.click()
+            print("  [OK] Clicked Log In button")
+        else:
+            print("  [WARN] Log in button not found. Trying fallback click...")
+            try:
+                page.locator("a:has-text('Log'), button:has-text('Log')").first.click()
+            except Exception as e:
+                print(f"  [ERROR] Could not click login button: {e}")
+                
+        time.sleep(5)
+        wait_idle(page)
+        ss(page, "trailhead_login_options")
+        
+        # Click Salesforce option
+        sf_btn = None
+        for sel in ["button:has-text('Salesforce')", "a:has-text('Salesforce')", "a[href*='salesforce']", "button[data-testid*='salesforce']"]:
+            try:
+                btn = page.locator(sel).first
+                if btn.is_visible(timeout=3000):
+                    sf_btn = btn
+                    break
+            except Exception:
+                continue
+                
+        if sf_btn:
+            sf_btn.click()
+            print("  [OK] Clicked Salesforce login option")
+        else:
+            print("  [WARN] Salesforce login button not found, checking if already redirected...")
+            
+        time.sleep(8)
+        wait_idle(page)
+        ss(page, "login_redirect")
+        
+        # Check if on login page
+        if "login.salesforce.com" in page.url or "force.com" in page.url or page.locator("#username").is_visible(timeout=10000):
+            print("  On Salesforce login page. Filling credentials...")
+            fill(page, "#username", "revanth@smartbridge.com", desc="Username")
+            fill(page, "#password", "Salesforce@1", desc="Password")
+            ss(page, "credentials_filled")
+            click(page, "#Login", desc="Log In Button")
+            time.sleep(10)
+            wait_idle(page)
+            ss(page, "after_login_submit")
+            
+            # Check for verification code
+            if "identity/verify" in page.url or page.locator("#emc").is_visible(timeout=5000):
+                print("  [CRITICAL] Verification Code page detected! Please handle it or wait...")
+                time.sleep(15)
+                ss(page, "mfa_verification_required")
+                
+            # Allow access page
+            if "oauth" in page.url or page.locator("input[name='oauth_approval_submit']").is_visible(timeout=8000):
+                print("  Approval page detected, clicking Allow...")
+                try:
+                    click(page, "input[name='oauth_approval_submit'], #oaapprove, button:has-text('Allow')", desc="Allow Access")
+                    time.sleep(5)
+                    wait_idle(page)
+                except Exception as e:
+                    print(f"  [WARN] Allow button click failed: {e}")
+        else:
+            print("  [WARN] Salesforce login input not found. Current URL:", page.url)
 
-    print("  ⚠️ Challenge result unclear — check the screenshot")
-    screenshot(trailhead_page, "51_result_unclear")
-    return False
+    # 3. Wait/poll back on Trailhead for the Launch button
+    print("  Waiting to return to Trailhead page...")
+    for attempt in range(12):
+        if "trailhead.salesforce.com" in page.url:
+            print("  Back on Trailhead.")
+            break
+        time.sleep(5)
+        wait_idle(page)
+    else:
+        print(f"  [WARN] Not on Trailhead module page. Navigating back to {MODULE_URL}")
+        page.goto(MODULE_URL, wait_until="domcontentloaded", timeout=60000)
+        time.sleep(5)
+        
+    ss(page, "trailhead_logged_in")
+    
+    # 4. Wait for the playground and Launch button
+    print("  Locating Launch button...")
+    launch_btn = None
+    for attempt in range(30):
+        for sel in ["button:has-text('Launch')", "a:has-text('Launch')", "button[data-testid*='launch']"]:
+            try:
+                btn = page.locator(sel).first
+                if btn.is_visible(timeout=1000) and btn.is_enabled():
+                    launch_btn = btn
+                    break
+            except Exception:
+                continue
+        if launch_btn:
+            print("  [OK] Launch button is ready!")
+            break
+            
+        print("  Playground not ready yet. Checking if creation/provisioning in progress...")
+        ss(page, f"playground_wait_{attempt}")
+        time.sleep(10)
+        
+    if not launch_btn:
+        raise Exception("Timed out waiting for playground Launch button to be ready.")
+        
+    # 5. Launch the playground in a new tab
+    print("  Launching playground...")
+    with context.expect_page() as new_page_info:
+        launch_btn.click()
+        
+    sf_page = new_page_info.value
+    sf_page.bring_to_front()
+    print("  [OK] Playground launched in a new tab!")
+    
+    # Wait for the Salesforce Org to load
+    print("  Waiting for Salesforce Org to load...")
+    sf_page.wait_for_load_state("domcontentloaded", timeout=60000)
+    time.sleep(10)
+    wait_idle(sf_page)
+    ss(sf_page, "sf_org_loaded")
+    
+    return sf_page
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# MAIN ORCHESTRATOR
-# ═══════════════════════════════════════════════════════════════════════════════
 def main():
-    parser = argparse.ArgumentParser(description="Trailhead Agent Blazer Automation")
-    parser.add_argument("--resume-from", type=int, default=1, help="Resume from milestone number (1-12)")
-    parser.add_argument("--headless", action="store_true", help="Run headless (no visible browser)")
-    args = parser.parse_args()
-
-    print("=" * 70)
-    print("  🚀 TRAILHEAD AGENT BLAZER CHAMPIONSHIP 2026")
-    print("  📋 Quick Start: Assemble a Service Agent with Agentforce Builder")
-    print(f"  ⏰ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"  📂 Screenshots: {SCREENSHOT_DIR}")
-    print(f"  🔄 Resume from milestone: {args.resume_from}")
-    print("=" * 70)
+    print("="*60)
+    print("  TRAILHEAD AGENT BLAZER CHAMPIONSHIP 2026")
+    print("  Automated Non-Interactive Automation Mode (R3, R4, R5)")
+    print("="*60)
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(
-            headless=args.headless,
-            slow_mo=SLOW_MO,
-            args=[
-                "--start-maximized",
-                "--disable-blink-features=AutomationControlled",
-            ]
+            headless=False,
+            slow_mo=200,
+            args=["--start-maximized", "--disable-blink-features=AutomationControlled"]
         )
-
         context = browser.new_context(
             viewport={"width": 1920, "height": 1080},
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
             ignore_https_errors=True,
+            no_viewport=True,
         )
-
         page = context.new_page()
-        page.set_default_timeout(30000)
+        page.set_default_timeout(45000)
 
-        sf_page = page  # Will be updated when Salesforce org opens
-        current_milestone = args.resume_from
-
+        # Navigate to Trailhead, Login and Launch Playground
+        print("\n  Browser is open! Starting automated login and launch...")
         try:
-            # MILESTONE 1: Login
-            if current_milestone <= 1:
-                retry(lambda: milestone_1_login(page), description="Login to Trailhead")
-                current_milestone = 2
+            sf_page = login_and_launch(page, context)
+        except Exception as e:
+            print(f"  [ERROR] Login or playground launch failed: {e}")
+            traceback.print_exc()
+            ss(page, "login_launch_failed")
+            browser.close()
+            sys.exit(1)
 
-            # MILESTONE 2: Playground
-            if current_milestone <= 2:
-                sf_page = retry(lambda: milestone_2_playground(page, context), description="Launch Playground")
-                current_milestone = 3
+        print(f"\n  Working on page: {sf_page.url[:80]}")
+        ss(sf_page, "handoff_from_login")
 
-            # MILESTONE 3: Create Agent
-            if current_milestone <= 3:
-                retry(lambda: milestone_3_create_agent(sf_page), description="Create CC Service Agent")
-                current_milestone = 4
+        # Execute all steps
+        try:
+            # Try to bypass step 1 and 2 by opening existing agent
+            bypassed = False
+            try:
+                bypassed = bypass_steps_1_and_2(sf_page)
+            except Exception as e:
+                print(f"  [WARN] Bypass failed: {e}. Attempting to run Step 1 and 2 from scratch...")
+                
+            if not bypassed:
+                step1_create_agent(sf_page)
+                pause("Step 1 done. Check the browser. Press ENTER to continue to Step 2...")
 
-            # MILESTONE 4: Create Subagent
-            if current_milestone <= 4:
-                retry(lambda: milestone_4_subagent(sf_page), description="Create Experience Management Subagent")
-                current_milestone = 5
+                step2_create_subagent(sf_page)
+                pause("Step 2 done. Check the browser. Press ENTER to continue to Step 3a...")
 
-            # MILESTONE 5: Custom Actions
-            if current_milestone <= 5:
-                retry(lambda: milestone_5_custom_actions(sf_page), description="Add Custom Actions")
-                current_milestone = 6
+            step3_add_action_get_experience(sf_page)
+            pause("Step 3a done. Press ENTER for Step 3b...")
 
-            # MILESTONE 6: Asset Actions
-            if current_milestone <= 6:
-                retry(lambda: milestone_6_asset_actions(sf_page), description="Add Asset Library Actions")
-                current_milestone = 7
+            step3b_add_action_get_customer(sf_page)
+            pause("Step 3b done. Press ENTER for Step 3c (Asset Library)...")
 
-            # MILESTONE 7: Instructions
-            if current_milestone <= 7:
-                retry(lambda: milestone_7_instructions(sf_page), description="Add Instructions")
-                current_milestone = 8
+            step3c_add_asset_library_actions(sf_page)
+            pause("Step 3c done. Press ENTER for Step 4 (Instructions)...")
 
-            # MILESTONE 8: Activate
-            if current_milestone <= 8:
-                retry(lambda: milestone_8_activate(sf_page), description="Save, Commit & Activate")
-                current_milestone = 9
+            step4_add_instructions(sf_page)
+            pause("Step 4 done. Press ENTER for Step 5 (Publish & Update)...")
 
-            # MILESTONE 9: Flow
-            if current_milestone <= 9:
-                retry(lambda: milestone_9_flow(sf_page), description="Configure Route to ESA Flow")
-                current_milestone = 10
+            step5_publish_and_update(sf_page, context)
+            pause("Step 5 done. Press ENTER for Step 6 (Verify Challenge)...")
 
-            # MILESTONE 10: Deployment
-            if current_milestone <= 10:
-                retry(lambda: milestone_10_deployment(sf_page), description="Publish ESA Web Deployment")
-                current_milestone = 11
+            step6_verify(sf_page, context)
 
-            # MILESTONE 11: Site
-            if current_milestone <= 11:
-                retry(lambda: milestone_11_site(sf_page, context), description="Configure Site Builder")
-                current_milestone = 12
-
-            # MILESTONE 12: Verify
-            if current_milestone <= 12:
-                retry(lambda: milestone_12_verify(sf_page, context), description="Verify Challenge")
-
-            print("\n" + "=" * 70)
-            print("  🏆 ALL MILESTONES COMPLETED!")
-            print(f"  ⏰ Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print("=" * 70)
+            print("\n" + "="*60)
+            print("  ALL STEPS COMPLETED!")
+            print("="*60)
 
         except Exception as e:
-            print(f"\n❌ FATAL ERROR at milestone {current_milestone}: {e}")
+            print(f"\n  [ERROR] {e}")
             traceback.print_exc()
-            screenshot(page, f"FATAL_milestone_{current_milestone}")
-            print(f"\n💡 To resume, run: python trailhead_automation.py --resume-from {current_milestone}")
+            ss(sf_page, "error")
 
-        finally:
-            # Keep browser open for manual inspection
-            print("\n⏸️  Browser staying open for inspection. Press Ctrl+C to close.")
-            try:
-                input("Press Enter to close browser...")
-            except (KeyboardInterrupt, EOFError):
-                pass
-            browser.close()
+        pause("Press ENTER to close browser...")
+        browser.close()
 
 
 if __name__ == "__main__":

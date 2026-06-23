@@ -1,23 +1,20 @@
-# BRIEFING — 2026-06-22T15:09:45Z
+# BRIEFING — 2026-06-23T11:34:05Z
 
 ## Mission
-Monitor the Project Orchestrator to complete the Salesforce Trailhead module "Quick Start: Assemble a Service Agent with Agentforce Builder".
+Automate the Salesforce Agentforce Builder configuration for the Trailhead module "Quick Start: Assemble a Service Agent with Agentforce Builder" in the launched playground.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: c:\Users\MANIKANTA\OneDrive\Desktop\Salesforce\.agents
-- Orchestrator: 30bf99f2-2a5a-42f1-818a-1ef24176c490
+- Orchestrator: 970e171b-da8c-48b7-8995-d5bee6f08653
 - Victory Auditor: to be spawned on victory claim
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
 - Victory Audit is MANDATORY before reporting completion
-- Node/npm is NOT installed. All automation must be Python-based, utilizing Playwright in `.venv\Scripts\python.exe`.
-- Reference pre-existing helper scripts: `C:\Users\MANIKANTA\.gemini\antigravity\scratch\trailhead_launch.py` and `trailhead_automation.py`.
-- If subagents encounter issues running terminal commands, they should write scripts and delegate execution to the main agent.
 
 ## User Context
-- **Last user request**: Complete the "Quick Start: Assemble a Service Agent with Agentforce Builder" module on Salesforce Trailhead using credentials (Username: revanth@smartbridge.com, Password: Salesforce@1).
+- **Last user request**: Automate the Salesforce Agentforce Builder configuration for the Trailhead module "Quick Start: Assemble a Service Agent with Agentforce Builder" where R1 & R2 are completed, and we need to add actions, instructions, route flow, configure Coral Cloud site, and verify.
 - **Pending clarifications**: none
 - **Delivered results**: none
 

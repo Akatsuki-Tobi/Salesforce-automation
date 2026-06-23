@@ -1,7 +1,7 @@
-# BRIEFING — 2026-06-22T14:41:00Z
+# BRIEFING — 2026-06-23T17:05:09+05:30
 
 ## Mission
-Complete the Salesforce Trailhead module "Quick Start: Assemble a Service Agent with Agentforce Builder" by logging in, creating the agent, adding custom and asset actions, flow routing, site integration, and verifying the completion.
+Complete the Salesforce Agentforce Builder configuration (R3: actions & instructions, R4: flow routing & site integration) and Trailhead module verification (R5) using Python-based Playwright automation.
 
 ## 🔒 My Identity
 - Archetype: orchestrator
@@ -13,11 +13,11 @@ Complete the Salesforce Trailhead module "Quick Start: Assemble a Service Agent 
 ## 🔒 My Workflow
 - **Pattern**: Project
 - **Scope document**: c:\Users\MANIKANTA\OneDrive\Desktop\Salesforce\PROJECT.md
-1. **Decompose**: Decompose the Trailhead module tasks into distinct milestones by functionality: playground prep, agent creation/configuration, flow routing/integration, and verification.
+1. **Decompose**: Decompose the task into Milestone 3 (actions & instructions config), Milestone 4 (flow routing & site integration), and Milestone 5 (verification).
 2. **Dispatch & Execute**:
    - **Direct (iteration loop)**: Spawn Explorer -> Worker -> Reviewer -> Challenger -> Auditor sequence.
    - **Delegate (sub-orchestrator)**: Spawn sub-orchestrators for milestones if they are too large.
-3. **On failure** (in this order):
+3. **On failure**:
    - Retry: nudge stuck agent or re-send task
    - Replace: spawn fresh agent with partial progress
    - Skip: proceed without (only if non-critical)
@@ -26,43 +26,43 @@ Complete the Salesforce Trailhead module "Quick Start: Assemble a Service Agent 
    - Escalate: report to parent (sub-orchestrators only, last resort)
 4. **Succession**: Self-succeed at 16 spawns. Write handoff.md, spawn successor.
 - **Work items**:
-  1. Milestone 1: Playground Launch & Frontdoor URL Retrieval [pending]
-  2. Milestone 2: Service Agent & Subagent Creation [pending]
-  3. Milestone 3: Actions and Instructions Setup [pending]
-  4. Milestone 4: Flow Routing & Site Integration [pending]
-  5. Milestone 5: Trailhead Challenge Verification [pending]
-- **Current phase**: 1
-- **Current focus**: Milestone 1: Playground Launch & Frontdoor URL Retrieval
+  1. Milestone 3: Actions and Instructions Setup (R3) [in-progress]
+  2. Milestone 4: Flow Routing & Site Integration (R4) [pending]
+  3. Milestone 5: Trailhead Challenge Verification (R5) [pending]
+- **Current phase**: 3
+- **Current focus**: Milestone 3: Actions and Instructions Setup (R3)
 
 ## 🔒 Key Constraints
 - Python-Only: Node/npm is not installed. All automation must be in Python using `.venv`.
-- Reference helper scripts: `C:\Users\MANIKANTA\.gemini\antigravity\scratch\trailhead_launch.py` and `C:\Users\MANIKANTA\.gemini\antigravity\scratch\trailhead_automation.py`.
+- Reference helper scripts: `c:\Users\MANIKANTA\OneDrive\Desktop\Salesforce\trailhead_automation.py`.
 - Never reuse a subagent after it has delivered its handoff — always spawn fresh
 - ZERO TOLERANCE for cheating/hardcoding/facade implementations.
 
 ## Current Parent
 - Conversation ID: 11eb32fa-1522-416a-a056-17d78344ec74
-- Updated: not yet
+- Updated: yes
 
 ## Key Decisions Made
-- Decomposed the project into 5 sequential milestones to align with requirements R1 to R5.
+- Skipped R1 and R2 automation design as CC Service Agent and Experience Management Subagent are already created in the Salesforce Org.
+- Start directly with R3 (Actions & Instructions configuration), but launch the browser to log in to Trailhead and access the playground.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
-| bd1b2741-725e-47b2-be92-739a5e617c70 | teamwork_preview_explorer | Explore workspace environment and propose R1-R5 automation strategy | completed | bd1b2741-725e-47b2-be92-739a5e617c70 |
-| fa6f9b69-c72c-4f62-8c8c-81b51f25d07c | self | Coordinate and execute Milestone 1 (Playground launch & frontdoor URL) | in-progress | fa6f9b69-c72c-4f62-8c8c-81b51f25d07c |
-| a49cc584-7a76-46bd-9e5b-788e23beb029 | self | Design E2E test suite and publish TEST_READY.md | in-progress | a49cc584-7a76-46bd-9e5b-788e23beb029 |
+| bd1b2741-725e-47b2-be92-739a5e617c70 | teamwork_preview_explorer | Explore workspace environment | completed | bd1b2741-725e-47b2-be92-739a5e617c70 |
+| 5793f185-8fba-47a3-b3bb-695fbd82ba7a | teamwork_preview_explorer | Explorer 1: R3, R4, R5 automation analysis | completed | 5793f185-8fba-47a3-b3bb-695fbd82ba7a |
+| d74b3d6b-0a73-43a0-91c8-b3aea1092153 | teamwork_preview_explorer | Explorer 2: Selector and structure analysis | completed | d74b3d6b-0a73-43a0-91c8-b3aea1092153 |
+| 558297e8-f56e-4c26-aef4-0ad02b406a97 | teamwork_preview_explorer | Explorer 3: Verification and recovery analysis | completed | 558297e8-f56e-4c26-aef4-0ad02b406a97 |
+| fc8fb79e-30f7-4645-a06f-529f1efdf27b | teamwork_preview_worker | Worker 1: Implement and run R3, R4, R5 automation | in-progress | fc8fb79e-30f7-4645-a06f-529f1efdf27b |
 
 ## Succession Status
-- Succession required: no
-- Spawn count: 3 / 16
-- Pending subagents: fa6f9b69-c72c-4f62-8c8c-81b51f25d07c, a49cc584-7a76-46bd-9e5b-788e23beb029
+- Spawn count: 8 / 16 (includes current iteration spawns)
+- Pending subagents: fc8fb79e-30f7-4645-a06f-529f1efdf27b
 - Predecessor: none
 - Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: 6cc6dd57-c923-4b69-925f-bb2d58cf79fa/task-9
+- Heartbeat cron: 970e171b-da8c-48b7-8995-d5bee6f08653/task-81
 - Safety timer: none
 - On succession: kill all timers before spawning successor
 - On context truncation: run `manage_task(Action="list")` — re-create if missing

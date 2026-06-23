@@ -60,3 +60,42 @@ Integrity mode: development
 ### Challenge Completion
 - [ ] The Trailhead challenge is completed successfully (returns success message or points awarded).
 - [ ] Verify script runs without errors.
+
+## 2026-06-23T11:34:05Z
+
+Automate the Salesforce Agentforce Builder configuration for the Trailhead module "Quick Start: Assemble a Service Agent with Agentforce Builder" in the launched playground.
+
+Working directory: c:\Users\MANIKANTA\OneDrive\Desktop\Salesforce
+
+## Requirements
+
+### R1. Create CC Service Agent [COMPLETED]
+- "CC Service Agent" has already been created in Agentforce Studio.
+- Assigned to user record: "EinsteinServiceAgent User".
+
+### R2. Create Experience Management Subagent [COMPLETED]
+- Subagent named "Experience Management" has already been created and opened.
+
+### R3. Add Actions and Asset Library Actions
+- Locate the "Experience Management" subagent tab/page.
+- Create custom flow action "Get Experience Details" with description "Provides details about an Experience__c that a user would like more information about." and require input for `experienceName`.
+- Create custom flow action "Get Customer Details" with description "Validate the Customer details by passing their email and memberNumber to see if there is a related contact." and require input for `email` and `memberNumber`.
+- Add "Create Experience Session Booking" and "Get Sessions" from the Asset Library.
+
+### R4. Add Instructions, Publish, Route Flow, and Configure Coral Cloud Site
+- Add the 4 specific instructions to the subagent (Canvas & Script views).
+- Commit & Activate the agent.
+- Publish ESA Web Deployment.
+- Update "Route to ESA" Flow to route to CC Service Agent.
+- Add "Embedded Messaging" component to the Coral Cloud Experience Site and publish the site.
+
+## Acceptance Criteria
+
+### Salesforce Agentforce Configuration
+- [x] CC Service Agent is active and configured with "Experience Management" subagent.
+- [ ] Subagent has the 4 custom/asset actions.
+- [ ] Subagent instructions are fully populated.
+- [ ] ESA Web Deployment is published.
+- [ ] Route to ESA Flow points to CC Service Agent.
+- [ ] Coral Cloud site contains the Embedded Messaging component and is published.
+- [ ] Trailhead challenge is verified and passed.
